@@ -47,6 +47,7 @@ export type WorkoutSet = {
   weight: number;
   rpe?: number;
   restSeconds?: number;
+  completed?: boolean;
   createdAt: string;
 };
 
@@ -82,4 +83,34 @@ export type Routine = {
   exercises: RoutineExercise[];
   favorite: boolean;
   createdAt: string;
+};
+
+export type TrainingLevel = "principiante" | "intermedio" | "avanzado";
+
+export type DynamicRule = {
+  trigger: string;
+  action: string;
+};
+
+export type WeeklyPlanDay = {
+  weekday: number;
+  label: string;
+  routineId: string;
+  focus: string;
+  intensity: "suave" | "media" | "alta";
+};
+
+export type WeeklyPlanTemplate = {
+  id: string;
+  name: string;
+  shortName: string;
+  daysPerWeek: number;
+  level: TrainingLevel;
+  goal: Goal;
+  image: string;
+  description: string;
+  bestFor: string;
+  coverage: MuscleGroup[];
+  days: WeeklyPlanDay[];
+  dynamicRules: DynamicRule[];
 };

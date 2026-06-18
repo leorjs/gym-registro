@@ -12,6 +12,7 @@ import {
 import type { MuscleGroup, Workout, WorkoutSet } from "@/types/training";
 
 export function getSetVolume(set: WorkoutSet) {
+  if (set.completed === false) return 0;
   return set.reps * set.weight;
 }
 

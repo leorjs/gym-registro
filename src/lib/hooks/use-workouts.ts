@@ -20,9 +20,10 @@ import type { Workout, WorkoutSet } from "@/types/training";
 type WorkoutDraft = Omit<Workout, "id" | "createdAt" | "updatedAt" | "totalVolume" | "totalSets" | "muscles">;
 
 function summarizeSets(sets: WorkoutSet[]) {
+  const completedSets = sets.filter((set) => set.completed !== false);
   return {
-    totalVolume: sets.reduce((sum, set) => sum + set.reps * set.weight, 0),
-    totalSets: sets.length,
+    totalVolume: completedSets.reduce((sum, set) => sum + set.reps * set.weight, 0),
+    totalSets: completedSets.length,
     muscles: Array.from(new Set(sets.map((set) => set.muscleGroup))),
   };
 }
