@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Copy, Plus, Timer, Trash2 } from "lucide-react";
 import { format } from "date-fns";
@@ -33,11 +33,12 @@ function newSet(overrides: Partial<WorkoutSet> = {}): WorkoutSet {
   };
 }
 
-export function WorkoutEditor({ workout }: { workout?: Workout }) {
+export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout; initialRoutineId?: string }) {
   const router = useRouter();
   const { user } = useAuth();
   const { routines } = useRoutines(user?.uid);
   const { saveWorkout } = useWorkouts(user?.uid);
+  const initialRoutineApplied = useRef(false);
   const [focus, setFocus] = useState(workout?.focus ?? "");
   const [date, setDate] = useState(workout?.date ?? format(new Date(), "yyyy-MM-dd"));
   const [durationMinutes, setDurationMinutes] = useState(workout?.durationMinutes ?? 55);
@@ -92,9 +93,9 @@ export function WorkoutEditor({ workout }: { workout?: Workout }) {
     setSets((current) => [...current, newSet({ ...source, id: undefined, setNumber: similarSets.length + 1 })]);
   }
 
-  function applyRoutine(routineId: string) {
+  const applyRoutine = useCallback((routineId: string) => {
     const routine = routines.find((item) => item.id === routineId);
-    if (!routine) return;
+    if (!routine) return false;
     setFocus(routine.name);
     setSets(
       routine.exercises.flatMap((exercise) =>
@@ -112,7 +113,13 @@ export function WorkoutEditor({ workout }: { workout?: Workout }) {
         ),
       ),
     );
-  }
+    return true;
+  }, [routines]);
+
+  useEffect(() => {
+    if (!initialRoutineId || workout || initialRoutineApplied.current) return;
+    initialRoutineApplied.current = applyRoutine(initialRoutineId);
+  }, [applyRoutine, initialRoutineId, workout]);
 
   async function save(status: "draft" | "completed") {
     if (!focus.trim() || !sets.every((set) => set.exerciseName.trim())) return;
