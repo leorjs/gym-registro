@@ -28,7 +28,7 @@ function clock(total: number) {
 export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout; initialRoutineId?: string }) {
   const router = useRouter();
   const { user, profile } = useAuth();
-  const { routines } = useRoutines(user?.uid);
+  const { routines, loading: routinesLoading } = useRoutines(user?.uid);
   const { saveWorkout } = useWorkouts(user?.uid);
   const initialRoutineApplied = useRef(false);
   const [focus, setFocus] = useState(workout?.focus ?? "");
@@ -57,9 +57,9 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
   }, [routines]);
 
   useEffect(() => {
-    if (!initialRoutineId || workout || initialRoutineApplied.current) return;
+    if (!initialRoutineId || workout || routinesLoading || initialRoutineApplied.current) return;
     initialRoutineApplied.current = applyRoutine(initialRoutineId);
-  }, [applyRoutine, initialRoutineId, workout]);
+  }, [applyRoutine, initialRoutineId, routinesLoading, workout]);
 
   useEffect(() => {
     if (!focus) return;
@@ -118,6 +118,7 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
   }
 
   if (!focus || !sets.length) {
+    if (routinesLoading) return <p className="rounded-[16px] bg-[var(--surface)] p-4 text-center text-[13px] text-[var(--label-2)]">Cargando tus rutinas guardadas…</p>;
     return <RoutineChooser routines={routines} onChoose={applyRoutine} />;
   }
 
@@ -149,8 +150,8 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
         {current.sets.map((set, index) => (
           <div key={set.id} className={`grid grid-cols-[28px_1fr_1fr_38px] items-center gap-2 py-2 ${index ? "border-t border-white/10" : ""}`}>
             <span className={`grid h-7 w-7 place-items-center rounded-full text-[13px] ${set.completed !== false ? "bg-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-black" : "bg-[var(--accent-soft)] text-[var(--accent)]"}`}>{index + 1}</span>
-            <Stepper value={set.weight} step={2.5} onChange={(value) => updateSet(set.id, { weight: value })} />
-            <Stepper value={set.reps} step={1} onChange={(value) => updateSet(set.id, { reps: value })} />
+            <Stepper ariaLabel={`Peso serie ${index + 1}`} value={set.weight} step={0.5} onChange={(value) => updateSet(set.id, { weight: value })} />
+            <Stepper ariaLabel={`Repeticiones serie ${index + 1}`} value={set.reps} step={1} onChange={(value) => updateSet(set.id, { reps: value })} />
             <button aria-label={`Completar serie ${index + 1}`} onClick={() => toggleSet(set)} className={`grid h-9 w-9 place-items-center rounded-full ${set.completed !== false ? "bg-[var(--accent)] text-black" : "border-2 border-[var(--surface-3)] text-transparent"}`}><Check size={18} /></button>
           </div>
         ))}
@@ -165,8 +166,9 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
   );
 }
 
-function Stepper({ value, step, onChange }: { value: number; step: number; onChange: (value: number) => void }) {
-  return <div className="grid h-11 grid-cols-[34px_1fr_34px] items-center rounded-xl bg-[var(--surface-2)] text-[var(--label-2)]"><button onClick={() => onChange(Math.max(0, value - step))} className="grid h-full place-items-center"><Minus size={14} /></button><span className="text-center text-[17px]">{value}</span><button onClick={() => onChange(value + step)} className="grid h-full place-items-center"><Plus size={14} /></button></div>;
+function Stepper({ ariaLabel, value, step, onChange }: { ariaLabel: string; value: number; step: number; onChange: (value: number) => void }) {
+  const adjust = (direction: -1 | 1) => onChange(Math.max(0, Math.round((value + direction * step) * 100) / 100));
+  return <div className="grid h-11 grid-cols-[34px_1fr_34px] items-center rounded-xl bg-[var(--surface-2)] text-[var(--label-2)]"><button type="button" aria-label={`Bajar ${ariaLabel.toLowerCase()}`} onClick={() => adjust(-1)} className="grid h-full place-items-center"><Minus size={14} /></button><input aria-label={ariaLabel} type="number" min={0} step={step} inputMode="decimal" value={value} onChange={(event) => onChange(Math.max(0, Number(event.target.value) || 0))} className="min-w-0 bg-transparent text-center text-[17px] text-white outline-none" /><button type="button" aria-label={`Subir ${ariaLabel.toLowerCase()}`} onClick={() => adjust(1)} className="grid h-full place-items-center"><Plus size={14} /></button></div>;
 }
 
 function RoutineChooser({ routines, onChoose }: { routines: ReturnType<typeof useRoutines>["routines"]; onChoose: (id: string) => boolean }) {

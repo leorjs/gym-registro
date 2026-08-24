@@ -9,7 +9,7 @@ import type { Routine } from "@/types/training";
 
 export function useRoutines(uid?: string) {
   const [customRoutines, setCustomRoutines] = useState<Routine[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadedUid, setLoadedUid] = useState<string | null>(null);
 
   useEffect(() => {
     if (!uid || !hasFirebaseConfig) {
@@ -18,7 +18,7 @@ export function useRoutines(uid?: string) {
 
     const unsubscribe = onSnapshot(collection(getFirebaseDb(), routinesPath(uid)), (snapshot) => {
       setCustomRoutines(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as Routine));
-      setLoading(false);
+      setLoadedUid(uid);
     });
 
     return () => {
@@ -36,9 +36,14 @@ export function useRoutines(uid?: string) {
     async (routine: Routine) => {
       if (!uid) throw new Error("Usuario no autenticado.");
       await setDoc(doc(getFirebaseDb(), routinesPath(uid), routine.id), routine, { merge: true });
+      setCustomRoutines((current) => {
+        const withoutSaved = current.filter((item) => item.id !== routine.id);
+        return [...withoutSaved, routine];
+      });
     },
     [uid],
   );
 
-  return { routines: uid && hasFirebaseConfig ? routines : starterRoutines, loading: uid && hasFirebaseConfig ? loading : false, saveRoutine };
+  const loading = Boolean(uid && hasFirebaseConfig && loadedUid !== uid);
+  return { routines: uid && hasFirebaseConfig ? routines : starterRoutines, loading, saveRoutine };
 }

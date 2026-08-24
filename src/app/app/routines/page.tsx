@@ -165,8 +165,9 @@ function RoutineEditor({ routine, saving, onClose, onSave }: { routine: Routine;
   const matches = useMemo(() => {
     const normalized = query.toLowerCase().trim();
     if (normalized.length < 2) return [];
-    return baseExercises.filter((exercise) => `${exercise.name} ${exercise.target} ${exercise.equipment}`.toLowerCase().includes(normalized)).slice(0, 12);
-  }, [query]);
+    const selectedIds = new Set(exercises.map((exercise) => exercise.exerciseId).filter(Boolean));
+    return baseExercises.filter((exercise) => !selectedIds.has(exercise.id) && `${exercise.name} ${exercise.target} ${exercise.equipment}`.toLowerCase().includes(normalized)).slice(0, 12);
+  }, [exercises, query]);
 
   function addExercise(exercise: Exercise) {
     setExercises((current) => [...current, { exerciseId: exercise.id, exerciseName: exercise.name, muscleGroup: exercise.muscleGroup, sets: 3, reps: 10, weight: 0, restSeconds: 90 }]);
@@ -194,16 +195,17 @@ function RoutineEditor({ routine, saving, onClose, onSave }: { routine: Routine;
           {exercises.map((exercise, index) => (
             <Card key={`${exercise.exerciseId ?? exercise.exerciseName}-${index}`}>
               <CardContent className="p-3">
-                <div className="mb-2 flex items-center gap-2"><span className="min-w-0 flex-1 truncate text-[15px] capitalize">{exercise.exerciseName}</span><button type="button" aria-label={`Quitar ${exercise.exerciseName}`} onClick={() => setExercises((current) => current.filter((_, position) => position !== index))} className="grid h-8 w-8 place-items-center text-[var(--red)]"><Trash2 size={15} /></button></div>
-                <div className="grid grid-cols-4 gap-2"><NumberField label="Series" value={exercise.sets} onChange={(value) => updateExercise(index, { sets: value })} /><NumberField label="Reps" value={exercise.reps} onChange={(value) => updateExercise(index, { reps: value })} /><NumberField label="Peso" value={exercise.weight} step={2.5} onChange={(value) => updateExercise(index, { weight: value })} /><NumberField label="Desc." value={exercise.restSeconds} step={15} onChange={(value) => updateExercise(index, { restSeconds: value })} /></div>
+                <div className="mb-2 flex items-center gap-2"><span className="min-w-0 flex-1 truncate text-[15px] capitalize">{exercise.exerciseName}</span><button type="button" aria-label={`Quitar ${exercise.exerciseName}`} onClick={() => setExercises((current) => current.filter((_, position) => position !== index))} className="flex h-8 items-center gap-1 rounded-lg px-2 text-[12px] text-[var(--red)]"><Trash2 size={14} />Quitar</button></div>
+                <div className="grid grid-cols-4 gap-2"><NumberField label="Series" value={exercise.sets} onChange={(value) => updateExercise(index, { sets: value })} /><NumberField label="Reps" value={exercise.reps} onChange={(value) => updateExercise(index, { reps: value })} /><NumberField label="Peso" value={exercise.weight} step={0.5} onChange={(value) => updateExercise(index, { weight: value })} /><NumberField label="Desc." value={exercise.restSeconds} step={15} onChange={(value) => updateExercise(index, { restSeconds: value })} /></div>
               </CardContent>
             </Card>
           ))}
           {!exercises.length && <p className="rounded-[16px] bg-[var(--surface)] p-4 text-center text-[13px] text-[var(--label-2)]">Buscá abajo y agregá el primer ejercicio.</p>}
         </div>
 
-        <div className="relative mt-4"><Search className="pointer-events-none absolute left-3 top-3 text-[var(--label-3)]" size={18} /><Input className="pl-10" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar entre 1.324 ejercicios" /></div>
-        {!!matches.length && <Card className="mt-2 overflow-hidden"><CardContent className="p-0">{matches.map((exercise, index) => <button type="button" key={exercise.id} onClick={() => addExercise(exercise)} className={`flex min-h-12 w-full items-center gap-2 px-3 text-left ${index ? "border-t border-white/10" : ""}`}><span className="min-w-0 flex-1 truncate text-[13px] capitalize">{exercise.name}</span><span className="text-[11px] capitalize text-[var(--label-3)]">{exercise.equipment}</span><Plus size={15} className="text-[var(--accent)]" /></button>)}</CardContent></Card>}
+        <div className="mt-5"><h3 className="text-[15px]">Agregar ejercicio</h3><p className="mt-1 text-[12px] text-[var(--label-3)]">Buscá un movimiento y tocá el resultado para sumarlo.</p></div>
+        <div className="relative mt-3"><Search className="pointer-events-none absolute left-3 top-3 text-[var(--label-3)]" size={18} /><Input className="pl-10" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar entre 1.324 ejercicios" /></div>
+        {!!matches.length && <Card className="mt-2 overflow-hidden"><CardContent className="p-0">{matches.map((exercise, index) => <button type="button" aria-label={`Agregar ${exercise.name}`} key={exercise.id} onClick={() => addExercise(exercise)} className={`flex min-h-12 w-full items-center gap-2 px-3 text-left ${index ? "border-t border-white/10" : ""}`}><span className="min-w-0 flex-1 truncate text-[13px] capitalize">{exercise.name}</span><span className="text-[11px] capitalize text-[var(--label-3)]">{exercise.equipment}</span><Plus size={15} className="text-[var(--accent)]" /></button>)}</CardContent></Card>}
 
         <Button className="mt-5 w-full" disabled={saving || !name.trim() || !exercises.length} onClick={save}>{saving ? "Guardando…" : "Guardar rutina"}</Button>
       </section>
