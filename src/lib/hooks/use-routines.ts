@@ -21,7 +21,9 @@ export function useRoutines(uid?: string) {
       setLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+    };
   }, [uid]);
 
   const routines = useMemo(() => {

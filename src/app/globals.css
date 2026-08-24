@@ -13,6 +13,7 @@
   --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
   --red: #ff453a;
   --orange: #ff9f0a;
+  --orange-soft: color-mix(in srgb, var(--orange) 16%, transparent);
   --shadow-soft: none;
 }
 

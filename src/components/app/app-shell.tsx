@@ -24,7 +24,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (!loading && (!user || !configReady)) router.replace("/login");
   }, [configReady, loading, router, user]);
 
-  useEffect(() => window.scrollTo(0, 0), [pathname]);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
 
   if (loading || !user || !configReady) {
     return (

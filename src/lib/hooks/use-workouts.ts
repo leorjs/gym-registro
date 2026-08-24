@@ -38,6 +38,7 @@ export function useWorkouts(uid?: string) {
       return;
     }
 
+    let active = true;
     const db = getFirebaseDb();
     const workoutsRef = collection(db, workoutsPath(uid));
     const q = query(workoutsRef, orderBy("date", "desc"));
@@ -45,26 +46,37 @@ export function useWorkouts(uid?: string) {
     const unsubscribe = onSnapshot(
       q,
       async (snapshot) => {
-        const hydrated = await Promise.all(
-          snapshot.docs.map(async (workoutDoc) => {
-            const setsSnap = await getDocs(collection(workoutDoc.ref, "sets"));
-            const sets = setsSnap.docs
-              .map((setDoc) => ({ id: setDoc.id, ...setDoc.data() }) as WorkoutSet)
-              .sort((a, b) => a.setNumber - b.setNumber);
-            return { id: workoutDoc.id, ...workoutDoc.data(), sets } as Workout;
-          }),
-        );
-        setWorkouts(hydrated);
-        setLoading(false);
-        setError(null);
+        try {
+          const hydrated = await Promise.all(
+            snapshot.docs.map(async (workoutDoc) => {
+              const setsSnap = await getDocs(collection(workoutDoc.ref, "sets"));
+              const sets = setsSnap.docs
+                .map((setDoc) => ({ id: setDoc.id, ...setDoc.data() }) as WorkoutSet)
+                .sort((a, b) => a.setNumber - b.setNumber);
+              return { id: workoutDoc.id, ...workoutDoc.data(), sets } as Workout;
+            }),
+          );
+          if (!active) return;
+          setWorkouts(hydrated);
+          setLoading(false);
+          setError(null);
+        } catch (reason) {
+          if (!active) return;
+          setError(reason instanceof Error ? reason.message : "No se pudieron cargar los entrenamientos.");
+          setLoading(false);
+        }
       },
       (reason) => {
+        if (!active) return;
         setError(reason.message);
         setLoading(false);
       },
     );
 
-    return unsubscribe;
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, [uid]);
 
   const saveWorkout = useCallback(

@@ -12,7 +12,13 @@ export function useBodyweights(uid?: string) {
   useEffect(() => {
     if (!uid || !hasFirebaseConfig) return;
     const q = query(collection(getFirebaseDb(), bodyweightsPath(uid)), orderBy("date", "asc"));
-    return onSnapshot(q, (snapshot) => setEntries(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as BodyWeightEntry)));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setEntries(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as BodyWeightEntry));
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, [uid]);
 
   const saveWeight = useCallback(async (weight: number, date = new Date().toISOString().slice(0, 10)) => {

@@ -99,7 +99,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+    };
   }, [loadProfile]);
 
   const value = useMemo<AuthContextValue>(

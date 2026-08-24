@@ -21,7 +21,9 @@ export function useExercises(uid?: string) {
       setLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+    };
   }, [uid]);
 
   const exercises = useMemo(() => {
