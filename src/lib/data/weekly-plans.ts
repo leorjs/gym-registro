@@ -11,7 +11,7 @@ export const dynamicTrainingRules = [
   },
   {
     trigger: "Completaste todas las reps con RPE menor o igual a 7",
-    action: "Sugerir subir 2.5-5% el peso o agregar 1-2 reps la próxima vez.",
+    action: "Sugerir subir desde 0.5 kg según el ejercicio o agregar 1-2 reps la próxima vez.",
   },
   {
     trigger: "Marcaste fatiga alta o bajó el rendimiento",
@@ -28,6 +28,27 @@ export const dynamicTrainingRules = [
 ];
 
 export const weeklyPlanTemplates: WeeklyPlanTemplate[] = [
+  {
+    id: "priority-chest-back-6",
+    name: "Prioridad pecho, brazos y espalda",
+    shortName: "Prioridad 6",
+    daysPerWeek: 6,
+    level: "principiante",
+    goal: "hipertrofia",
+    image: "/training-visuals/upper-lower.png",
+    description: "Cinco sesiones de fuerza y un día de recuperación, sin dominadas ni fondos.",
+    bestFor: "Priorizar pecho y brazos, fortalecer espalda y progresar con cargas regulables.",
+    coverage: ["pecho", "espalda", "piernas", "hombros", "brazos", "core", "gluteos"],
+    days: [
+      { weekday: 1, label: "Lunes", routineId: "priority-chest-arms-a", focus: "Pecho + brazos A", intensity: "alta" },
+      { weekday: 2, label: "Martes", routineId: "priority-back-core-a", focus: "Espalda + core A", intensity: "media" },
+      { weekday: 3, label: "Miércoles", routineId: "priority-legs", focus: "Piernas adaptadas", intensity: "media" },
+      { weekday: 4, label: "Jueves", routineId: "recovery", focus: "Movilidad + cardio", intensity: "suave" },
+      { weekday: 5, label: "Viernes", routineId: "priority-chest-arms-b", focus: "Pecho + brazos B", intensity: "alta" },
+      { weekday: 6, label: "Sábado", routineId: "priority-back-shoulders-core", focus: "Espalda + hombros + core", intensity: "media" },
+    ],
+    dynamicRules: dynamicTrainingRules,
+  },
   {
     id: "full-body-3",
     name: "Full Body 3 días",

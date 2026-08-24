@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { estimateRoutineMinutes, starterRoutines } from "./catalog";
 import { exerciseByIdOrName, exerciseGifSrc } from "./exercise-catalog";
+import { weeklyPlanTemplates } from "./weekly-plans";
 
 describe("rutinas iniciales", () => {
   it("incluye seis ejercicios en cada sesión", () => {
@@ -30,5 +31,16 @@ describe("rutinas iniciales", () => {
     const dips = pushA?.exercises.find((exercise) => exercise.exerciseName === "Fondos");
     expect(dips?.exerciseId).toBe("0814");
     expect(exerciseGifSrc(exerciseByIdOrName(dips?.exerciseId, dips?.exerciseName))).toContain("0814-X6C6i5Y.gif");
+  });
+
+  it("incluye el plan prioritario sin dominadas ni fondos", () => {
+    const plan = weeklyPlanTemplates.find((item) => item.id === "priority-chest-back-6");
+    expect(plan?.days).toHaveLength(6);
+    const routineIds = new Set(plan?.days.map((day) => day.routineId));
+    const plannedExercises = starterRoutines
+      .filter((routine) => routineIds.has(routine.id))
+      .flatMap((routine) => routine.exercises.map((exercise) => exercise.exerciseName));
+    expect(plannedExercises).not.toContain("Dominadas");
+    expect(plannedExercises).not.toContain("Fondos");
   });
 });
