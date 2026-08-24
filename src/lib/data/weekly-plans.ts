@@ -66,6 +66,25 @@ export const weeklyPlanTemplates: WeeklyPlanTemplate[] = [
     dynamicRules: dynamicTrainingRules,
   },
   {
+    id: "full-body-4",
+    name: "Full Body 4 días",
+    shortName: "FB 4",
+    daysPerWeek: 4,
+    level: "intermedio",
+    goal: "hipertrofia",
+    image: "/training-visuals/full-body.png",
+    description: "Cuatro sesiones full body distintas para repartir el volumen durante la semana.",
+    bestFor: "Entrenar todo el cuerpo cuatro veces con cargas y movimientos variados.",
+    coverage: ["pecho", "espalda", "piernas", "hombros", "brazos", "core", "gluteos"],
+    days: [
+      { weekday: 1, label: "Lunes", routineId: "full-body-a", focus: "Full Body A", intensity: "alta" },
+      { weekday: 2, label: "Martes", routineId: "full-body-b", focus: "Full Body B", intensity: "media" },
+      { weekday: 4, label: "Jueves", routineId: "full-body-c", focus: "Full Body C", intensity: "alta" },
+      { weekday: 6, label: "Sábado", routineId: "full-body-d", focus: "Full Body D", intensity: "media" },
+    ],
+    dynamicRules: dynamicTrainingRules,
+  },
+  {
     id: "ppl-hybrid-5",
     name: "PPL híbrido 5 días",
     shortName: "PPL 5",
@@ -108,8 +127,8 @@ export const weeklyPlanTemplates: WeeklyPlanTemplate[] = [
   },
   {
     id: "six-plus-recovery-7",
-    name: "6 fuerza + recuperación",
-    shortName: "7 días",
+    name: "Semana completa 7 días",
+    shortName: "Full 7",
     daysPerWeek: 7,
     level: "avanzado",
     goal: "salud",
@@ -131,9 +150,9 @@ export const weeklyPlanTemplates: WeeklyPlanTemplate[] = [
 ];
 
 export function recommendWeeklyPlan(daysPerWeek: number) {
-  if (daysPerWeek <= 3) return weeklyPlanTemplates[0];
-  if (daysPerWeek === 4) return weeklyPlanTemplates[1];
-  if (daysPerWeek === 5) return weeklyPlanTemplates[2];
-  if (daysPerWeek === 6) return weeklyPlanTemplates[3];
-  return weeklyPlanTemplates[4];
+  if (daysPerWeek <= 3) return weeklyPlanTemplates.find((plan) => plan.id === "full-body-3")!;
+  if (daysPerWeek === 4) return weeklyPlanTemplates.find((plan) => plan.id === "upper-lower-4")!;
+  if (daysPerWeek === 5) return weeklyPlanTemplates.find((plan) => plan.id === "ppl-hybrid-5")!;
+  if (daysPerWeek === 6) return weeklyPlanTemplates.find((plan) => plan.id === "ppl-6")!;
+  return weeklyPlanTemplates.find((plan) => plan.id === "six-plus-recovery-7")!;
 }

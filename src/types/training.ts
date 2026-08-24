@@ -43,6 +43,13 @@ export type Exercise = {
   favorite: boolean;
   custom: boolean;
   createdAt: string;
+  bodyPart?: string;
+  equipment?: string;
+  target?: string;
+  secondaryMuscles?: string[];
+  instructions?: string[];
+  image?: string;
+  gif?: string;
 };
 
 export type WorkoutSet = {
@@ -75,6 +82,7 @@ export type Workout = {
 };
 
 export type RoutineExercise = {
+  exerciseId?: string;
   exerciseName: string;
   muscleGroup: MuscleGroup;
   sets: number;
@@ -121,4 +129,13 @@ export type WeeklyPlanTemplate = {
   coverage: MuscleGroup[];
   days: WeeklyPlanDay[];
   dynamicRules: DynamicRule[];
+};
+
+export type UserWeeklyPlan = {
+  id: "current";
+  templateId: string;
+  name: string;
+  daysPerWeek: number;
+  days: WeeklyPlanDay[];
+  updatedAt: string;
 };

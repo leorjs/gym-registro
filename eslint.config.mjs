@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "src/lib/data/opengym-exercises-data.js",
+    "src/lib/data/opengym-instructions-es.js",
   ]),
 ]);
 

@@ -1,17 +1,9 @@
 import type { Exercise, Routine } from "@/types/training";
+import { openGymExercises } from "@/lib/data/exercise-catalog";
 
 const now = new Date().toISOString();
 
-export const baseExercises: Exercise[] = [
-  { id: "press-banca", name: "Press banca", muscleGroup: "pecho", tags: ["barra", "fuerza"], favorite: true, custom: false, createdAt: now },
-  { id: "sentadilla", name: "Sentadilla", muscleGroup: "piernas", tags: ["barra", "compuesto"], favorite: true, custom: false, createdAt: now },
-  { id: "peso-muerto", name: "Peso muerto", muscleGroup: "espalda", tags: ["barra", "posterior"], favorite: false, custom: false, createdAt: now },
-  { id: "dominadas", name: "Dominadas", muscleGroup: "espalda", tags: ["calistenia"], favorite: true, custom: false, createdAt: now },
-  { id: "press-militar", name: "Press militar", muscleGroup: "hombros", tags: ["barra"], favorite: false, custom: false, createdAt: now },
-  { id: "remo-barra", name: "Remo con barra", muscleGroup: "espalda", tags: ["barra"], favorite: false, custom: false, createdAt: now },
-  { id: "hip-thrust", name: "Hip thrust", muscleGroup: "gluteos", tags: ["barra"], favorite: false, custom: false, createdAt: now },
-  { id: "plancha", name: "Plancha", muscleGroup: "core", tags: ["isometrico"], favorite: false, custom: false, createdAt: now },
-];
+export const baseExercises: Exercise[] = openGymExercises;
 
 export const starterRoutines: Routine[] = [
   {
@@ -282,6 +274,62 @@ export const starterRoutines: Routine[] = [
       { exerciseName: "Caminata inclinada", muscleGroup: "full-body", sets: 1, reps: 20, weight: 0, restSeconds: 0 },
       { exerciseName: "Movilidad de cadera", muscleGroup: "gluteos", sets: 2, reps: 10, weight: 0, restSeconds: 30 },
       { exerciseName: "Plancha", muscleGroup: "core", sets: 2, reps: 45, weight: 0, restSeconds: 45 },
+    ],
+  },
+  {
+    id: "full-body-d",
+    name: "Full Body D",
+    description: "Cuarta sesión full body con énfasis en glúteos, pecho y espalda.",
+    muscleGroups: ["full-body"],
+    favorite: false,
+    createdAt: now,
+    exercises: [
+      { exerciseId: "0336", exerciseName: "dumbbell lunge", muscleGroup: "piernas", sets: 3, reps: 10, weight: 16, restSeconds: 90 },
+      { exerciseId: "0314", exerciseName: "dumbbell incline bench press", muscleGroup: "pecho", sets: 3, reps: 10, weight: 20, restSeconds: 90 },
+      { exerciseId: "0150", exerciseName: "cable bar lateral pulldown", muscleGroup: "espalda", sets: 3, reps: 10, weight: 45, restSeconds: 90 },
+      { exerciseId: "0334", exerciseName: "dumbbell lateral raise", muscleGroup: "hombros", sets: 3, reps: 14, weight: 7, restSeconds: 60 },
+    ],
+  },
+  {
+    id: "chest-arms",
+    name: "Pecho + brazos",
+    description: "Pecho completo con trabajo accesorio de tríceps y bíceps.",
+    muscleGroups: ["pecho", "brazos"],
+    favorite: false,
+    createdAt: now,
+    exercises: [
+      { exerciseId: "0025", exerciseName: "barbell bench press", muscleGroup: "pecho", sets: 4, reps: 8, weight: 55, restSeconds: 120 },
+      { exerciseId: "0314", exerciseName: "dumbbell incline bench press", muscleGroup: "pecho", sets: 3, reps: 10, weight: 20, restSeconds: 90 },
+      { exerciseId: "0200", exerciseName: "cable pushdown (with rope attachment)", muscleGroup: "brazos", sets: 3, reps: 12, weight: 20, restSeconds: 60 },
+      { exerciseId: "0313", exerciseName: "dumbbell hammer curl", muscleGroup: "brazos", sets: 3, reps: 12, weight: 12, restSeconds: 60 },
+    ],
+  },
+  {
+    id: "back-shoulders",
+    name: "Espalda + hombros",
+    description: "Tracción vertical y horizontal con deltoides posterior.",
+    muscleGroups: ["espalda", "hombros", "brazos"],
+    favorite: false,
+    createdAt: now,
+    exercises: [
+      { exerciseId: "0150", exerciseName: "cable bar lateral pulldown", muscleGroup: "espalda", sets: 4, reps: 10, weight: 45, restSeconds: 90 },
+      { exerciseId: "0027", exerciseName: "barbell bent over row", muscleGroup: "espalda", sets: 4, reps: 8, weight: 50, restSeconds: 120 },
+      { exerciseId: "0203", exerciseName: "cable rear delt row (with rope)", muscleGroup: "hombros", sets: 3, reps: 14, weight: 18, restSeconds: 60 },
+      { exerciseId: "0313", exerciseName: "dumbbell hammer curl", muscleGroup: "brazos", sets: 3, reps: 12, weight: 12, restSeconds: 60 },
+    ],
+  },
+  {
+    id: "legs-complete",
+    name: "Piernas completas",
+    description: "Cuádriceps, posterior, glúteos y pantorrillas en una sesión.",
+    muscleGroups: ["piernas", "gluteos", "core"],
+    favorite: false,
+    createdAt: now,
+    exercises: [
+      { exerciseId: "0043", exerciseName: "barbell full squat", muscleGroup: "piernas", sets: 4, reps: 8, weight: 70, restSeconds: 150 },
+      { exerciseId: "0085", exerciseName: "barbell romanian deadlift", muscleGroup: "gluteos", sets: 4, reps: 8, weight: 65, restSeconds: 120 },
+      { exerciseId: "0585", exerciseName: "lever leg extension", muscleGroup: "piernas", sets: 3, reps: 12, weight: 40, restSeconds: 75 },
+      { exerciseId: "0586", exerciseName: "lever lying leg curl", muscleGroup: "piernas", sets: 3, reps: 12, weight: 35, restSeconds: 75 },
     ],
   },
 ];

@@ -24,6 +24,10 @@ service cloud.firestore {
       match /bodyweights/{entryId} {
         allow read, create, update, delete: if request.auth != null && request.auth.uid == userId;
       }
+
+      match /plans/{planId} {
+        allow read, create, update, delete: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
     match /{document=**} {

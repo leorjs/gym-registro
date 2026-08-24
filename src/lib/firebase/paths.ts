@@ -4,3 +4,4 @@ export const workoutPath = (uid: string, workoutId: string) => `users/${uid}/wor
 export const exercisesPath = (uid: string) => `users/${uid}/exercises`;
 export const routinesPath = (uid: string) => `users/${uid}/routines`;
 export const bodyweightsPath = (uid: string) => `users/${uid}/bodyweights`;
+export const weeklyPlanPath = (uid: string) => `users/${uid}/plans/current`;

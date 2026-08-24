@@ -8,21 +8,21 @@ import { Area, AreaChart, ReferenceLine, ResponsiveContainer, YAxis } from "rech
 import { CalendarDays, ChevronLeft, ChevronRight, Dumbbell, Flame, Settings, Moon, Plus, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { recommendWeeklyPlan } from "@/lib/data/weekly-plans";
 import { getWeekStreak, getWeeklySessions } from "@/lib/metrics/training";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useWorkouts } from "@/lib/hooks/use-workouts";
 import { useBodyweights } from "@/lib/hooks/use-bodyweights";
+import { useWeeklyPlan } from "@/lib/hooks/use-weekly-plan";
 
 export default function HomePage() {
   const { user, profile } = useAuth();
   const { workouts } = useWorkouts(user?.uid);
   const { entries: bodyweights, latest: latestWeight, saveWeight } = useBodyweights(user?.uid);
+  const { plan } = useWeeklyPlan(user?.uid, profile?.weeklyGoal ?? 4);
   const [weekOffset, setWeekOffset] = useState(0);
   const [loggingWeight, setLoggingWeight] = useState(false);
   const [weight, setWeight] = useState(0);
   const today = new Date();
-  const plan = recommendWeeklyPlan(profile?.weeklyGoal ?? 4);
   const todayPlan = plan.days.find((day) => day.weekday === today.getDay());
   const monday = startOfWeek(addWeeks(today, weekOffset), { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, index) => addDays(monday, index));

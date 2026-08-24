@@ -8,18 +8,8 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useRoutines } from "@/lib/hooks/use-routines";
 import { useWorkouts } from "@/lib/hooks/use-workouts";
+import { exerciseByIdOrName, exerciseGifSrc, exerciseImageSrc, exerciseMediaAttribution } from "@/lib/data/exercise-catalog";
 import type { Workout, WorkoutSet } from "@/types/training";
-
-const GIF_BASE = "https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@7455efae41b330c265e7cd4b78dfa848e7ce5ebd/videos/";
-const mediaByName: Record<string, string> = {
-  "press banca": "0025-EIeI8Vf.gif",
-  sentadilla: "0043-qXTaZnJ.gif",
-  "peso muerto rumano": "0085-wQ2c4XD.gif",
-  "press militar": "1457-Kyd9Rz5.gif",
-  dominadas: "0651-0V2YQjW.gif",
-  "remo con barra": "0027-eZyBC3j.gif",
-  plancha: "0464-CosupLu.gif",
-};
 
 function makeSet(overrides: Partial<WorkoutSet> = {}): WorkoutSet {
   return {
@@ -54,7 +44,7 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
     setFocus(routine.name);
     setExerciseIndex(0);
     setSets(routine.exercises.flatMap((exercise) => Array.from({ length: exercise.sets }, (_, index) => makeSet({
-      exerciseId: exercise.exerciseName.toLowerCase().replaceAll(" ", "-"), exerciseName: exercise.exerciseName,
+      exerciseId: exercise.exerciseId ?? exercise.exerciseName.toLowerCase().replaceAll(" ", "-"), exerciseName: exercise.exerciseName,
       muscleGroup: exercise.muscleGroup, reps: exercise.reps, weight: exercise.weight,
       restSeconds: exercise.restSeconds, setNumber: index + 1,
     }))));
@@ -85,7 +75,9 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
   }, [sets]);
   const current = groups[Math.min(exerciseIndex, Math.max(0, groups.length - 1))];
   const completed = sets.filter((set) => set.completed !== false).length;
-  const media = current ? mediaByName[current.name.toLowerCase()] ?? "0025-EIeI8Vf.gif" : "0025-EIeI8Vf.gif";
+  const catalogExercise = current ? exerciseByIdOrName(current.sets[0]?.exerciseId, current.name) : undefined;
+  const gif = exerciseGifSrc(catalogExercise);
+  const image = exerciseImageSrc(catalogExercise);
 
   function updateSet(id: string, patch: Partial<WorkoutSet>) {
     setSets((items) => items.map((set) => set.id === id ? { ...set, ...patch } : set));
@@ -122,11 +114,12 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
       <div className="mb-5 h-1 overflow-hidden rounded-full bg-[var(--surface-3)]"><span className="block h-full rounded-full bg-[var(--accent)] transition-all" style={{ width: `${sets.length ? completed / sets.length * 100 : 0}%` }} /></div>
 
       <p className="mb-2 text-[13px] text-[var(--label-2)]">Ejercicio {exerciseIndex + 1} / {groups.length}</p>
-      <button type="button" onClick={() => setPlaying((value) => !value)} className="relative mb-3 block aspect-square w-full overflow-hidden rounded-[18px] bg-white">
+      {(gif || image) && <button type="button" onClick={() => setPlaying((value) => !value)} className="relative mb-3 block aspect-square w-full overflow-hidden rounded-[18px] bg-white">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={GIF_BASE + media} alt={current.name} className="h-full w-full object-contain" />
-        <span className="absolute bottom-3 right-3 flex items-center gap-2 rounded-full bg-black/45 px-3 py-1.5 text-[13px] text-white backdrop-blur"><Pause size={13} />{playing ? "tocá para pausar" : "tocá para reproducir"}</span>
-      </button>
+        <img src={playing ? gif : image} alt={current.name} className="h-full w-full object-contain" />
+        <span className="absolute bottom-3 right-3 flex items-center gap-2 rounded-full bg-black/45 px-3 py-1.5 text-[13px] text-white backdrop-blur">{playing ? <Pause size={13} /> : <Play size={13} />}{playing ? "tocá para pausar" : "tocá para reproducir"}</span>
+      </button>}
+      {(gif || image) && <a href="https://gymvisual.com/" target="_blank" rel="noreferrer" className="mb-3 block text-center text-[10px] text-[var(--label-3)]">{exerciseMediaAttribution}</a>}
 
       <div className="mb-2 flex items-center justify-between gap-3"><h2 className="text-[24px] font-bold capitalize tracking-[-.02em]">{current.name}</h2><span className="grid h-10 w-10 place-items-center rounded-full bg-[var(--surface)]"><Info size={19} /></span></div>
       <div className="mb-2 flex flex-wrap gap-2"><span className="rounded-lg bg-[var(--surface-2)] px-3 py-1.5 text-[13px] capitalize text-[var(--label-2)]">{current.sets[0]?.muscleGroup}</span><span className="rounded-lg bg-[var(--surface-2)] px-3 py-1.5 text-[13px] text-[var(--label-2)]">Mejor: {Math.max(...current.sets.map((set) => set.weight))} {profile?.unit ?? "kg"}</span></div>
