@@ -5,7 +5,7 @@ import { addDays, addWeeks, format, isSameDay, startOfWeek } from "date-fns";
 import { es } from "date-fns/locale";
 import { useState } from "react";
 import { Area, AreaChart, ReferenceLine, ResponsiveContainer, YAxis } from "recharts";
-import { CalendarDays, ChevronLeft, ChevronRight, Dumbbell, Flame, Settings, Moon, Plus, Sparkles } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Dumbbell, Flame, Settings, Moon, Play, Plus, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getWeekStreak, getWeeklySessions } from "@/lib/metrics/training";
@@ -13,19 +13,25 @@ import { useAuth } from "@/lib/hooks/use-auth";
 import { useWorkouts } from "@/lib/hooks/use-workouts";
 import { useBodyweights } from "@/lib/hooks/use-bodyweights";
 import { useWeeklyPlan } from "@/lib/hooks/use-weekly-plan";
+import { useRoutines } from "@/lib/hooks/use-routines";
+import { estimateRoutineMinutes } from "@/lib/data/catalog";
 
 export default function HomePage() {
   const { user, profile } = useAuth();
   const { workouts } = useWorkouts(user?.uid);
   const { entries: bodyweights, latest: latestWeight, saveWeight } = useBodyweights(user?.uid);
   const { plan } = useWeeklyPlan(user?.uid, profile?.weeklyGoal ?? 4);
+  const { routines } = useRoutines(user?.uid);
   const [weekOffset, setWeekOffset] = useState(0);
+  const [selectedWeekday, setSelectedWeekday] = useState(() => new Date().getDay());
   const [loggingWeight, setLoggingWeight] = useState(false);
   const [weight, setWeight] = useState(0);
   const today = new Date();
-  const todayPlan = plan.days.find((day) => day.weekday === today.getDay());
   const monday = startOfWeek(addWeeks(today, weekOffset), { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, index) => addDays(monday, index));
+  const selectedDate = weekDays.find((day) => day.getDay() === selectedWeekday) ?? weekDays[0];
+  const selectedPlan = plan.days.find((day) => day.weekday === selectedWeekday);
+  const selectedRoutine = routines.find((routine) => routine.id === selectedPlan?.routineId);
   const doneDates = new Set(workouts.filter((w) => w.status === "completed").map((w) => w.date));
   const weeklySessions = getWeeklySessions(workouts);
   const streak = getWeekStreak(workouts);
@@ -61,23 +67,40 @@ export default function HomePage() {
               const planned = plan.days.some((item) => item.weekday === day.getDay());
               const current = isSameDay(day, today);
               return (
-                <div key={iso} className="grid justify-items-center gap-1 text-[13px]">
+                <button key={iso} type="button" aria-label={`${format(day, "EEEE d 'de' MMMM", { locale: es })}${planned ? ", entrenamiento programado" : ", descanso"}`} onClick={() => setSelectedWeekday(day.getDay())} className={`grid justify-items-center gap-1 rounded-xl px-0.5 py-1 text-[13px] transition-colors ${selectedWeekday === day.getDay() ? "bg-[var(--surface-2)]" : ""}`}>
                   <span className="text-[10px] uppercase text-[var(--label-3)]">{format(day, "EEEEE", { locale: es })}</span>
                   <span className={`grid h-8 w-8 place-items-center rounded-full ${current ? "bg-[var(--accent)] font-semibold text-black" : ""}`}>{format(day, "d")}</span>
                   <span className={`h-1 w-1 rounded-full ${doneDates.has(iso) ? "bg-[var(--accent)]" : planned ? "bg-[var(--label-3)]" : "bg-transparent"}`} />
-                </div>
+                </button>
               );
             })}
           </div>
 
-          <Link href={todayPlan ? `/app/workout/new?routine=${todayPlan.routineId}` : "/app/routines"} className="mt-4 flex items-center gap-3 rounded-xl bg-[var(--surface-2)] p-3 active:brightness-125">
-            <span className={`grid h-8 w-8 place-items-center rounded-lg ${todayPlan ? "bg-[var(--accent)] text-black" : "bg-[var(--surface-3)]"}`}>{todayPlan ? <Dumbbell size={17} /> : <Moon size={17} />}</span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[11px] uppercase text-[var(--label-3)]">Hoy</span>
-              <span className="block truncate text-[17px]">{todayPlan?.focus ?? "Día de descanso"}</span>
-            </span>
-            {todayPlan ? <span className="text-[13px] text-[var(--accent)]">Iniciar</span> : <Plus size={17} />}
-          </Link>
+          <div className="mt-4 rounded-xl bg-[var(--surface-2)] p-3">
+            <div className="flex items-center gap-3">
+              <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${selectedPlan ? "bg-[var(--accent)] text-black" : "bg-[var(--surface-3)]"}`}>{selectedPlan ? <Dumbbell size={17} /> : <Moon size={17} />}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[11px] uppercase text-[var(--label-3)]">{format(selectedDate, "EEEE d", { locale: es })}</span>
+                <span className="block truncate text-[17px]">{selectedPlan?.focus ?? "Día de descanso"}</span>
+              </span>
+              {selectedRoutine && <span className="text-[12px] text-[var(--label-2)]">≈ {estimateRoutineMinutes(selectedRoutine)} min</span>}
+            </div>
+            {selectedRoutine ? (
+              <>
+                <ul className="mt-3 grid gap-1.5 border-t border-white/10 pt-3">
+                  {selectedRoutine.exercises.map((exercise) => (
+                    <li key={`${selectedRoutine.id}-${exercise.exerciseId ?? exercise.exerciseName}`} className="flex items-center justify-between gap-3 text-[12px]">
+                      <span className="min-w-0 truncate">{exercise.exerciseName}</span>
+                      <span className="shrink-0 text-[var(--label-3)]">{exercise.sets} × {exercise.reps}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Button asChild size="sm" className="mt-3 w-full"><Link href={`/app/workout/new?routine=${selectedRoutine.id}`}><Play size={15} />Iniciar {selectedRoutine.name}</Link></Button>
+              </>
+            ) : (
+              <Link href="/app/routines" className="mt-3 flex items-center justify-center gap-2 border-t border-white/10 pt-3 text-[13px] text-[var(--accent)]"><Plus size={15} />Programar una rutina</Link>
+            )}
+          </div>
         </CardContent>
       </Card>
 

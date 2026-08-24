@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/hooks/use-auth";
 import { useRoutines } from "@/lib/hooks/use-routines";
 import { useWorkouts } from "@/lib/hooks/use-workouts";
 import { exerciseByIdOrName, exerciseGifSrc, exerciseImageSrc, exerciseMediaAttribution } from "@/lib/data/exercise-catalog";
+import { estimateRoutineMinutes } from "@/lib/data/catalog";
 import type { Workout, WorkoutSet } from "@/types/training";
 
 function makeSet(overrides: Partial<WorkoutSet> = {}): WorkoutSet {
@@ -36,13 +37,17 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
   const [elapsed, setElapsed] = useState(0);
   const [rest, setRest] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(true);
+  const [mediaFailed, setMediaFailed] = useState(false);
 
   const applyRoutine = useCallback((routineId: string) => {
     const routine = routines.find((item) => item.id === routineId);
     if (!routine) return false;
     setFocus(routine.name);
     setExerciseIndex(0);
+    setPlaying(true);
+    setMediaFailed(false);
     setSets(routine.exercises.flatMap((exercise) => Array.from({ length: exercise.sets }, (_, index) => makeSet({
       exerciseId: exercise.exerciseId ?? exercise.exerciseName.toLowerCase().replaceAll(" ", "-"), exerciseName: exercise.exerciseName,
       muscleGroup: exercise.muscleGroup, reps: exercise.reps, weight: exercise.weight,
@@ -89,15 +94,27 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
     if (done) setRest(set.restSeconds ?? 90);
   }
 
+  function goToExercise(index: number) {
+    setExerciseIndex(index);
+    setPlaying(true);
+    setMediaFailed(false);
+  }
+
   async function finish(status: "draft" | "completed") {
     if (!focus || !sets.length) return;
     setSaving(true);
-    await saveWorkout({
-      date: workout?.date ?? format(new Date(), "yyyy-MM-dd"), focus,
-      durationMinutes: Math.max(1, Math.round(elapsed / 60)), status,
-      notes: workout?.notes ?? "", sets: sets.map((set, index) => ({ ...set, setNumber: index + 1 })),
-    }, workout?.id);
-    router.push("/app/history");
+    setSaveError(null);
+    try {
+      await saveWorkout({
+        date: workout?.date ?? format(new Date(), "yyyy-MM-dd"), focus,
+        durationMinutes: Math.max(1, Math.round(elapsed / 60)), status,
+        notes: workout?.notes ?? "", sets: sets.map((set, index) => ({ ...set, setNumber: index + 1 })),
+      }, workout?.id);
+      router.push("/app/history");
+    } catch (reason) {
+      setSaveError(reason instanceof Error ? reason.message : "No se pudo guardar el entrenamiento.");
+      setSaving(false);
+    }
   }
 
   if (!focus || !sets.length) {
@@ -109,17 +126,18 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
       <header className="mb-4 grid grid-cols-[44px_1fr_44px] items-center gap-3">
         <button aria-label="Descartar" onClick={() => router.back()} className="grid h-11 w-11 place-items-center rounded-full bg-[var(--surface)]"><X size={22} /></button>
         <div className="text-center"><h1 className="text-[18px] font-semibold">{focus}</h1><p className="mt-1 text-[13px] text-[var(--label-2)]">{clock(elapsed)} · {completed}/{sets.length} series</p></div>
-        <button aria-label="Finalizar" disabled={saving} onClick={() => finish("completed")} className="grid h-11 w-11 place-items-center rounded-full bg-[var(--surface)] text-[var(--accent)]"><Check size={22} /></button>
+        <button type="button" aria-label={saving ? "Guardando entrenamiento" : "Finalizar"} disabled={saving} onClick={() => finish("completed")} className="grid h-11 w-11 place-items-center rounded-full bg-[var(--surface)] text-[var(--accent)] disabled:opacity-50"><Check size={22} /></button>
       </header>
+      {saveError && <p role="alert" className="mb-3 rounded-xl bg-[color-mix(in_srgb,var(--red)_16%,transparent)] p-3 text-[13px] text-[var(--red)]">{saveError} Volvé a intentarlo.</p>}
       <div className="mb-5 h-1 overflow-hidden rounded-full bg-[var(--surface-3)]"><span className="block h-full rounded-full bg-[var(--accent)] transition-all" style={{ width: `${sets.length ? completed / sets.length * 100 : 0}%` }} /></div>
 
       <p className="mb-2 text-[13px] text-[var(--label-2)]">Ejercicio {exerciseIndex + 1} / {groups.length}</p>
-      {(gif || image) && <button type="button" onClick={() => setPlaying((value) => !value)} className="relative mb-3 block aspect-square w-full overflow-hidden rounded-[18px] bg-white">
+      {!mediaFailed && (gif || image) && <button type="button" onClick={() => setPlaying((value) => !value)} className="relative mb-3 block aspect-square w-full overflow-hidden rounded-[18px] bg-white">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={playing ? gif : image} alt={current.name} className="h-full w-full object-contain" />
+        <img src={playing ? gif : image} alt={current.name} onError={() => { if (playing && image) setPlaying(false); else setMediaFailed(true); }} className="h-full w-full object-contain" />
         <span className="absolute bottom-3 right-3 flex items-center gap-2 rounded-full bg-black/45 px-3 py-1.5 text-[13px] text-white backdrop-blur">{playing ? <Pause size={13} /> : <Play size={13} />}{playing ? "tocá para pausar" : "tocá para reproducir"}</span>
       </button>}
-      {(gif || image) && <a href="https://gymvisual.com/" target="_blank" rel="noreferrer" className="mb-3 block text-center text-[10px] text-[var(--label-3)]">{exerciseMediaAttribution}</a>}
+      {!mediaFailed && (gif || image) && <a href="https://gymvisual.com/" target="_blank" rel="noreferrer" className="mb-3 block text-center text-[10px] text-[var(--label-3)]">{exerciseMediaAttribution}</a>}
 
       <div className="mb-2 flex items-center justify-between gap-3"><h2 className="text-[24px] font-bold capitalize tracking-[-.02em]">{current.name}</h2><span className="grid h-10 w-10 place-items-center rounded-full bg-[var(--surface)]"><Info size={19} /></span></div>
       <div className="mb-2 flex flex-wrap gap-2"><span className="rounded-lg bg-[var(--surface-2)] px-3 py-1.5 text-[13px] capitalize text-[var(--label-2)]">{current.sets[0]?.muscleGroup}</span><span className="rounded-lg bg-[var(--surface-2)] px-3 py-1.5 text-[13px] text-[var(--label-2)]">Mejor: {Math.max(...current.sets.map((set) => set.weight))} {profile?.unit ?? "kg"}</span></div>
@@ -139,7 +157,7 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
         <Button variant="secondary" size="sm" className="mt-3 w-full" onClick={() => setSets((items) => [...items, makeSet({ ...current.sets.at(-1), id: undefined, setNumber: current.sets.length + 1, completed: false })])}><Plus size={15} />Agregar serie</Button>
       </section>
 
-      <div className="mt-3 grid grid-cols-2 gap-2"><Button variant="secondary" disabled={exerciseIndex === 0} onClick={() => setExerciseIndex((value) => value - 1)}><ChevronLeft size={16} />Anterior</Button><Button variant="secondary" disabled={exerciseIndex >= groups.length - 1} onClick={() => setExerciseIndex((value) => value + 1)}>Siguiente<ChevronRight size={16} /></Button></div>
+      <div className="mt-3 grid grid-cols-2 gap-2"><Button variant="secondary" disabled={exerciseIndex === 0} onClick={() => goToExercise(exerciseIndex - 1)}><ChevronLeft size={16} />Anterior</Button><Button variant="secondary" disabled={exerciseIndex >= groups.length - 1} onClick={() => goToExercise(exerciseIndex + 1)}>Siguiente<ChevronRight size={16} /></Button></div>
       <Button variant="ghost" className="mt-2 w-full text-[var(--label-2)]" onClick={() => finish("draft")}>Guardar y terminar después</Button>
 
       {rest > 0 && <div className="fixed inset-x-0 bottom-[78px] z-50 mx-auto flex w-[calc(100%-32px)] max-w-[528px] items-center gap-4 rounded-[16px] bg-[rgba(28,28,30,.94)] p-4 shadow-2xl backdrop-blur-xl"><strong className="text-[30px]">{clock(rest)}</strong><span className="h-1 flex-1 overflow-hidden rounded-full bg-[var(--surface-3)]"><i className="block h-full bg-[var(--accent)]" style={{ width: `${Math.min(100, rest / 90 * 100)}%` }} /></span><button onClick={() => setRest((value) => value + 15)} className="text-[var(--accent)]">+ 15s</button><Button className="min-h-10 px-4" onClick={() => setRest(0)}>Saltar</Button></div>}
@@ -152,5 +170,5 @@ function Stepper({ value, step, onChange }: { value: number; step: number; onCha
 }
 
 function RoutineChooser({ routines, onChoose }: { routines: ReturnType<typeof useRoutines>["routines"]; onChoose: (id: string) => boolean }) {
-  return <div><header className="mb-6 mt-1"><h1 className="text-[34px] font-bold tracking-[-.028em]">Iniciar entrenamiento</h1><p className="mt-1 text-[15px] text-[var(--label-2)]">Elegí una rutina para comenzar</p></header><div className="grid gap-3">{routines.map((routine) => <button key={routine.id} onClick={() => onChoose(routine.id)} className="flex min-h-[72px] items-center gap-3 rounded-[16px] bg-[var(--surface)] p-4 text-left"><span className="grid h-10 w-10 place-items-center rounded-lg bg-[var(--accent)] text-black"><Dumbbell size={20} /></span><span className="min-w-0 flex-1"><strong className="block truncate text-[17px] font-medium">{routine.name}</strong><span className="text-[13px] text-[var(--label-2)]">{routine.exercises.length} ejercicios</span></span><Play size={18} className="text-[var(--accent)]" /></button>)}</div></div>;
+  return <div><header className="mb-6 mt-1"><h1 className="text-[34px] font-bold tracking-[-.028em]">Iniciar entrenamiento</h1><p className="mt-1 text-[15px] text-[var(--label-2)]">Elegí una rutina para comenzar</p></header><div className="grid gap-3">{routines.map((routine) => <button key={routine.id} onClick={() => onChoose(routine.id)} className="flex min-h-[72px] items-center gap-3 rounded-[16px] bg-[var(--surface)] p-4 text-left"><span className="grid h-10 w-10 place-items-center rounded-lg bg-[var(--accent)] text-black"><Dumbbell size={20} /></span><span className="min-w-0 flex-1"><strong className="block truncate text-[17px] font-medium">{routine.name}</strong><span className="text-[13px] text-[var(--label-2)]">{routine.exercises.length} ejercicios · ≈ {estimateRoutineMinutes(routine)} min</span></span><Play size={18} className="text-[var(--accent)]" /></button>)}</div></div>;
 }

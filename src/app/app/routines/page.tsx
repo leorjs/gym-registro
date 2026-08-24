@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { baseExercises } from "@/lib/data/catalog";
+import { baseExercises, estimateRoutineMinutes } from "@/lib/data/catalog";
 import { weeklyPlanTemplates } from "@/lib/data/weekly-plans";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useRoutines } from "@/lib/hooks/use-routines";
@@ -139,7 +139,7 @@ export default function PlanPage() {
             <Card key={routine.id}>
               <CardContent className="flex min-h-[76px] items-center gap-3 p-3">
                 <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--accent)] text-black"><Dumbbell size={20} /></span>
-                <button type="button" onClick={() => setEditingRoutine(routine)} className="min-w-0 flex-1 text-left"><span className="block truncate text-[17px]">{routine.name}</span><span className="block truncate text-[12px] text-[var(--label-2)]">{routine.exercises.length} ejercicios · {routine.description}</span></button>
+                <button type="button" onClick={() => setEditingRoutine(routine)} className="min-w-0 flex-1 text-left"><span className="block truncate text-[17px]">{routine.name}</span><span className="block truncate text-[12px] text-[var(--label-2)]">{routine.exercises.length} ejercicios · ≈ {estimateRoutineMinutes(routine)} min</span><span className="block truncate text-[11px] text-[var(--label-3)]">{routine.description}</span></button>
                 <button type="button" aria-label={`Editar ${routine.name}`} onClick={() => setEditingRoutine(routine)} className="grid h-10 w-10 place-items-center rounded-full bg-[var(--surface-2)]"><Pencil size={16} /></button>
                 <Link aria-label={`Iniciar ${routine.name}`} href={`/app/workout/new?routine=${routine.id}`} className="grid h-10 w-10 place-items-center rounded-full bg-[var(--accent-soft)] text-[var(--accent)]"><Play size={16} /></Link>
               </CardContent>
@@ -186,7 +186,7 @@ function RoutineEditor({ routine, saving, onClose, onSave }: { routine: Routine;
     <div role="dialog" aria-modal="true" aria-label={`Editar ${routine.name}`} className="fixed inset-0 z-[70] flex items-end justify-center bg-black/70 px-2 pt-8 backdrop-blur-sm">
       <button type="button" aria-label="Cerrar editor" className="absolute inset-0" onClick={onClose} />
       <section className="relative max-h-[94vh] w-full max-w-[560px] overflow-y-auto rounded-t-[24px] bg-[#111113] p-4 pb-8 shadow-2xl">
-        <div className="mb-4 flex items-center gap-3"><div className="min-w-0 flex-1"><h2 className="text-[24px] font-semibold">Editar rutina</h2><p className="text-[13px] text-[var(--label-2)]">Nombre, ejercicios, series y descansos</p></div><button type="button" onClick={onClose} className="grid h-10 w-10 place-items-center rounded-full bg-[var(--surface)]"><X size={19} /></button></div>
+        <div className="mb-4 flex items-center gap-3"><div className="min-w-0 flex-1"><h2 className="text-[24px] font-semibold">Editar rutina</h2><p className="text-[13px] text-[var(--label-2)]">{exercises.length} ejercicios · ≈ {estimateRoutineMinutes({ exercises })} min</p></div><button type="button" onClick={onClose} className="grid h-10 w-10 place-items-center rounded-full bg-[var(--surface)]"><X size={19} /></button></div>
         <div className="grid gap-2"><Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Nombre de la rutina" /><Textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Descripción" /></div>
 
         <h3 className="mb-2 mt-5 text-[15px] text-[var(--label-2)]">Ejercicios ({exercises.length})</h3>

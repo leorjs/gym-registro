@@ -28,6 +28,12 @@ function summarizeSets(sets: WorkoutSet[]) {
   };
 }
 
+function firestoreSet(set: WorkoutSet, now: string) {
+  const payload = { ...set, createdAt: set.createdAt || now };
+  if (payload.rpe === undefined) delete payload.rpe;
+  return payload;
+}
+
 export function useWorkouts(uid?: string) {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
@@ -108,7 +114,7 @@ export function useWorkouts(uid?: string) {
       await Promise.all(
         draft.sets.map((set) => {
           const setRef = doc(collection(ref, "sets"), set.id);
-          return setDoc(setRef, { ...set, createdAt: set.createdAt || now });
+          return setDoc(setRef, firestoreSet(set, now));
         }),
       );
 
