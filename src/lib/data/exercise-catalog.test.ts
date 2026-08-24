@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { exerciseByIdOrName, exerciseGifSrc, openGymExercises } from "./exercise-catalog";
+import { alternativesForExercise, exerciseByIdOrName, exerciseGifSrc, openGymExercises } from "./exercise-catalog";
 import { weeklyPlanTemplates } from "./weekly-plans";
 
 describe("catálogo openGym", () => {
@@ -18,5 +18,14 @@ describe("catálogo openGym", () => {
     expect(weeklyPlanTemplates.some((plan) => plan.id === "full-body-3" && plan.days.length === 3)).toBe(true);
     expect(weeklyPlanTemplates.some((plan) => plan.id === "full-body-4" && plan.days.length === 4)).toBe(true);
     expect(weeklyPlanTemplates.some((plan) => plan.id === "six-plus-recovery-7" && plan.days.length === 7)).toBe(true);
+  });
+
+  it("ofrece reemplazos del mismo músculo objetivo", () => {
+    const benchPress = exerciseByIdOrName("0025", "barbell bench press");
+    const alternatives = alternativesForExercise(benchPress);
+    expect(alternatives.length).toBeGreaterThan(10);
+    expect(alternatives.every((exercise) => exercise.target === "pectorals")).toBe(true);
+    expect(alternatives.some((exercise) => exercise.target === "triceps")).toBe(false);
+    expect(alternatives.some((exercise) => exercise.id === "0025")).toBe(false);
   });
 });

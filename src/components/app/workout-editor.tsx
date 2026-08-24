@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronLeft, ChevronRight, Dumbbell, Info, Lightbulb, Minus, Pause, Play, Plus, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Dumbbell, Info, Lightbulb, Minus, Pause, Play, Plus, Search, X } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useRoutines } from "@/lib/hooks/use-routines";
 import { useWorkouts } from "@/lib/hooks/use-workouts";
-import { exerciseByIdOrName, exerciseGifSrc, exerciseImageSrc, exerciseMediaAttribution } from "@/lib/data/exercise-catalog";
+import { alternativesForExercise, exerciseByIdOrName, exerciseGifSrc, exerciseImageSrc, exerciseMediaAttribution } from "@/lib/data/exercise-catalog";
 import { estimateRoutineMinutes } from "@/lib/data/catalog";
 import type { Workout, WorkoutSet } from "@/types/training";
 
@@ -40,6 +41,8 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
   const [saveError, setSaveError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(true);
   const [mediaFailed, setMediaFailed] = useState(false);
+  const [changingExercise, setChangingExercise] = useState(false);
+  const [alternativeQuery, setAlternativeQuery] = useState("");
 
   const applyRoutine = useCallback((routineId: string) => {
     const routine = routines.find((item) => item.id === routineId);
@@ -83,6 +86,13 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
   const catalogExercise = current ? exerciseByIdOrName(current.sets[0]?.exerciseId, current.name) : undefined;
   const gif = exerciseGifSrc(catalogExercise);
   const image = exerciseImageSrc(catalogExercise);
+  const usedExerciseIds = useMemo(() => [...new Set(sets.map((set) => set.exerciseId))], [sets]);
+  const alternatives = useMemo(() => {
+    const normalized = alternativeQuery.trim().toLowerCase();
+    return alternativesForExercise(catalogExercise, usedExerciseIds)
+      .filter((exercise) => !normalized || `${exercise.name} ${exercise.equipment}`.toLowerCase().includes(normalized))
+      .slice(0, 40);
+  }, [alternativeQuery, catalogExercise, usedExerciseIds]);
 
   function updateSet(id: string, patch: Partial<WorkoutSet>) {
     setSets((items) => items.map((set) => set.id === id ? { ...set, ...patch } : set));
@@ -96,6 +106,23 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
 
   function goToExercise(index: number) {
     setExerciseIndex(index);
+    setPlaying(true);
+    setMediaFailed(false);
+  }
+
+  function replaceCurrentExercise(replacement: NonNullable<typeof catalogExercise>) {
+    if (!current) return;
+    const previousName = current.name;
+    setSets((items) => items.map((set) => set.exerciseName === previousName ? {
+      ...set,
+      exerciseId: replacement.id,
+      exerciseName: replacement.name,
+      muscleGroup: replacement.muscleGroup,
+      weight: 0,
+      completed: false,
+    } : set));
+    setChangingExercise(false);
+    setAlternativeQuery("");
     setPlaying(true);
     setMediaFailed(false);
   }
@@ -140,7 +167,7 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
       </button>}
       {!mediaFailed && (gif || image) && <a href="https://gymvisual.com/" target="_blank" rel="noreferrer" className="mb-3 block text-center text-[10px] text-[var(--label-3)]">{exerciseMediaAttribution}</a>}
 
-      <div className="mb-2 flex items-center justify-between gap-3"><h2 className="text-[24px] font-bold capitalize tracking-[-.02em]">{current.name}</h2><span className="grid h-10 w-10 place-items-center rounded-full bg-[var(--surface)]"><Info size={19} /></span></div>
+      <div className="mb-2 flex items-center justify-between gap-3"><h2 className="min-w-0 flex-1 text-[24px] font-bold capitalize tracking-[-.02em]">{current.name}</h2><div className="flex shrink-0 gap-2"><button type="button" aria-label={`Cambiar ${current.name} por otro ejercicio del mismo músculo`} onClick={() => setChangingExercise(true)} className="grid h-10 w-10 place-items-center rounded-full bg-[var(--accent)] text-black"><Plus size={20} /></button><span className="grid h-10 w-10 place-items-center rounded-full bg-[var(--surface)]"><Info size={19} /></span></div></div>
       <div className="mb-2 flex flex-wrap gap-2"><span className="rounded-lg bg-[var(--surface-2)] px-3 py-1.5 text-[13px] capitalize text-[var(--label-2)]">{current.sets[0]?.muscleGroup}</span><span className="rounded-lg bg-[var(--surface-2)] px-3 py-1.5 text-[13px] text-[var(--label-2)]">Mejor: {Math.max(...current.sets.map((set) => set.weight))} {profile?.unit ?? "kg"}</span></div>
       <p className="mb-2 text-[13px] text-[var(--label-3)]">Última vez: {current.sets.map((set) => `${set.weight}×${set.reps}`).join(", ")}</p>
       <p className="mb-3 flex items-center gap-2 rounded-lg bg-[var(--accent-soft)] px-3 py-2 text-[13px] text-[var(--accent)]"><Lightbulb size={15} />La última vez completaste todas las reps — mantené la técnica.</p>
@@ -162,6 +189,8 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
       <Button variant="ghost" className="mt-2 w-full text-[var(--label-2)]" onClick={() => finish("draft")}>Guardar y terminar después</Button>
 
       {rest > 0 && <div className="fixed inset-x-0 bottom-[78px] z-50 mx-auto flex w-[calc(100%-32px)] max-w-[528px] items-center gap-4 rounded-[16px] bg-[rgba(28,28,30,.94)] p-4 shadow-2xl backdrop-blur-xl"><strong className="text-[30px]">{clock(rest)}</strong><span className="h-1 flex-1 overflow-hidden rounded-full bg-[var(--surface-3)]"><i className="block h-full bg-[var(--accent)]" style={{ width: `${Math.min(100, rest / 90 * 100)}%` }} /></span><button onClick={() => setRest((value) => value + 15)} className="text-[var(--accent)]">+ 15s</button><Button className="min-h-10 px-4" onClick={() => setRest(0)}>Saltar</Button></div>}
+
+      {changingExercise && catalogExercise && <div role="dialog" aria-modal="true" aria-label={`Cambiar ${current.name}`} className="fixed inset-0 z-[70] flex items-end justify-center bg-black/75 px-2 pt-8 backdrop-blur-sm"><button type="button" aria-label="Cerrar alternativas" className="absolute inset-0" onClick={() => setChangingExercise(false)} /><section className="relative max-h-[88vh] w-full max-w-[560px] overflow-y-auto rounded-t-[24px] bg-[#111113] p-4 pb-8"><div className="mb-4 flex items-start gap-3"><div className="min-w-0 flex-1"><p className="text-[12px] uppercase text-[var(--accent)]">Mismo músculo · {catalogExercise.target ?? catalogExercise.muscleGroup}</p><h2 className="mt-1 text-[24px] font-semibold">Cambiar ejercicio</h2><p className="mt-1 text-[12px] leading-5 text-[var(--label-2)]">Conservamos series y repeticiones. El peso vuelve a 0 para que elijas una carga adecuada.</p></div><button type="button" aria-label="Cerrar alternativas" onClick={() => setChangingExercise(false)} className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[var(--surface)]"><X size={19} /></button></div><div className="relative mb-3"><Search className="pointer-events-none absolute left-3 top-3 text-[var(--label-3)]" size={18} /><Input className="pl-10" value={alternativeQuery} onChange={(event) => setAlternativeQuery(event.target.value)} placeholder={`Buscar alternativas para ${catalogExercise.target ?? catalogExercise.muscleGroup}`} /></div><div className="grid gap-2">{alternatives.map((exercise) => <button type="button" key={exercise.id} onClick={() => replaceCurrentExercise(exercise)} className="flex min-h-[58px] items-center gap-3 rounded-[14px] bg-[var(--surface)] px-3 text-left"><span className="min-w-0 flex-1"><strong className="block truncate text-[14px] capitalize">{exercise.name}</strong><span className="text-[11px] capitalize text-[var(--label-3)]">{exercise.equipment}</span></span><Plus size={17} className="text-[var(--accent)]" /></button>)}{!alternatives.length && <p className="rounded-[14px] bg-[var(--surface)] p-4 text-center text-[13px] text-[var(--label-2)]">No encontramos otra alternativa con ese filtro.</p>}</div></section></div>}
     </div>
   );
 }

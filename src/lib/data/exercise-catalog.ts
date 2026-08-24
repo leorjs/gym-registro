@@ -91,6 +91,16 @@ export function exerciseByIdOrName(id?: string, name?: string) {
   return byName.get(name.toLowerCase()) ?? byId.get(spanishAliases[name.toLowerCase()]);
 }
 
+export function alternativesForExercise(exercise?: Exercise, excludedIds: string[] = []) {
+  if (!exercise) return [];
+  const excluded = new Set([exercise.id, ...excludedIds]);
+  return openGymExercises.filter((candidate) => {
+    if (excluded.has(candidate.id)) return false;
+    if (exercise.target) return candidate.target === exercise.target;
+    return candidate.muscleGroup === exercise.muscleGroup;
+  });
+}
+
 export function exerciseImageSrc(exercise?: Pick<Exercise, "image">) {
   return exercise?.image ? `${MEDIA_BASE}/images/${exercise.image}` : undefined;
 }
