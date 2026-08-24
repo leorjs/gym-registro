@@ -1,7 +1,6 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { PageHeader } from "@/components/app/page-header";
 import { WorkoutEditor } from "@/components/app/workout-editor";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useWorkouts } from "@/lib/hooks/use-workouts";
@@ -14,13 +13,12 @@ export default function EditWorkoutPage() {
 
   return (
     <>
-      <PageHeader eyebrow="Editar" title="Ajustar sesión" description="Corregí sets, notas o duración de un entrenamiento guardado." />
       {loading ? (
-        <div className="rounded-lg bg-white p-5 text-sm font-black shadow-[var(--shadow-soft)]">Cargando sesión...</div>
+        <div className="rounded-[14px] bg-[var(--surface)] p-5 text-sm text-[var(--label-2)]">Cargando sesión...</div>
       ) : workout ? (
         <WorkoutEditor workout={workout} />
       ) : (
-        <div className="rounded-lg bg-white p-5 text-sm font-black shadow-[var(--shadow-soft)]">No encontramos esta sesión.</div>
+        <div className="rounded-[14px] bg-[var(--surface)] p-5 text-sm text-[var(--label-2)]">No encontramos esta sesión.</div>
       )}
     </>
   );

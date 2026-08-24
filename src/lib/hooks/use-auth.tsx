@@ -34,6 +34,7 @@ type OnboardingInput = {
   unit: WeightUnit;
   goal: Goal;
   weeklyGoal: number;
+  targetWeight?: number;
   priorityMuscles: MuscleGroup[];
 };
 

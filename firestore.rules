@@ -20,6 +20,10 @@ service cloud.firestore {
       match /routines/{routineId} {
         allow read, create, update, delete: if request.auth != null && request.auth.uid == userId;
       }
+
+      match /bodyweights/{entryId} {
+        allow read, create, update, delete: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
     match /{document=**} {

@@ -10,16 +10,20 @@ import { Select } from "@/components/ui/select";
 import { PageHeader } from "@/components/app/page-header";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useWorkouts } from "@/lib/hooks/use-workouts";
+import { useBodyweights } from "@/lib/hooks/use-bodyweights";
 import type { Goal, MuscleGroup, WeightUnit, Workout, WorkoutSet } from "@/types/training";
 
 export default function ProfilePage() {
   const { user, profile, completeOnboarding, logout } = useAuth();
   const { workouts, saveWorkout } = useWorkouts(user?.uid);
+  const { entries: bodyweights, latest: latestWeight, saveWeight } = useBodyweights(user?.uid);
   const fileRef = useRef<HTMLInputElement>(null);
   const [displayName, setDisplayName] = useState(profile?.displayName ?? "");
   const [unit, setUnit] = useState<WeightUnit>(profile?.unit ?? "kg");
   const [goal, setGoal] = useState<Goal>(profile?.goal ?? "hipertrofia");
   const [weeklyGoal, setWeeklyGoal] = useState(profile?.weeklyGoal ?? 4);
+  const [targetWeight, setTargetWeight] = useState(profile?.targetWeight ?? 0);
+  const [currentWeight, setCurrentWeight] = useState(latestWeight?.weight ?? 0);
   const [message, setMessage] = useState("");
 
   async function saveProfile() {
@@ -28,13 +32,15 @@ export default function ProfilePage() {
       unit,
       goal,
       weeklyGoal,
+      targetWeight: targetWeight || undefined,
       priorityMuscles: profile?.priorityMuscles ?? ["pecho", "espalda", "piernas"],
     });
+    if (currentWeight > 0) await saveWeight(currentWeight);
     setMessage("Perfil actualizado.");
   }
 
   function exportData() {
-    const blob = new Blob([JSON.stringify({ profile, workouts }, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify({ profile, workouts, bodyweights }, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -89,12 +95,20 @@ export default function ProfilePage() {
               Días por semana
               <Input type="number" min={1} max={7} value={weeklyGoal} onChange={(event) => setWeeklyGoal(Number(event.target.value))} />
             </Label>
+            <Label>
+              Peso actual ({unit})
+              <Input type="number" min={1} step={0.1} value={currentWeight || ""} onChange={(event) => setCurrentWeight(Number(event.target.value))} />
+            </Label>
+            <Label>
+              Peso objetivo ({unit})
+              <Input type="number" min={1} step={0.1} value={targetWeight || ""} onChange={(event) => setTargetWeight(Number(event.target.value))} />
+            </Label>
             <div className="flex items-end">
               <Button className="w-full" onClick={saveProfile}>
                 Guardar cambios
               </Button>
             </div>
-            {message && <p className="sm:col-span-2 rounded-lg bg-[#dcefe8] p-3 text-sm font-bold text-[#124b3e]">{message}</p>}
+            {message && <p className="sm:col-span-2 rounded-xl bg-[var(--accent-soft)] p-3 text-sm text-[var(--accent)]">{message}</p>}
           </CardContent>
         </Card>
 

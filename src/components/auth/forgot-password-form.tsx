@@ -45,13 +45,13 @@ export function ForgotPasswordForm() {
         <Input type="email" autoComplete="email" {...form.register("email")} />
       </Label>
       {form.formState.errors.email && <p className="text-sm font-semibold text-[#b23b32]">{form.formState.errors.email.message}</p>}
-      {sent && <p className="rounded-lg bg-[#dcefe8] p-3 text-sm font-semibold text-[#124b3e]">Te enviamos el enlace de recuperación.</p>}
-      {error && <p className="rounded-lg bg-[#f7dfdc] p-3 text-sm font-semibold text-[#8f251f]">{error}</p>}
+      {sent && <p className="rounded-xl bg-[var(--accent-soft)] p-3 text-sm text-[var(--accent)]">Te enviamos el enlace de recuperación.</p>}
+      {error && <p className="rounded-xl bg-[color-mix(in_srgb,var(--red)_16%,transparent)] p-3 text-sm text-[var(--red)]">{error}</p>}
       <Button type="submit" size="lg" disabled={!configReady || form.formState.isSubmitting}>
         <Send size={18} />
         Enviar enlace
       </Button>
-      <Link className="text-sm font-bold text-[#66706b] hover:text-[#151917]" href="/login">
+      <Link className="text-sm text-[var(--label-2)] hover:text-white" href="/login">
         Volver al login
       </Link>
     </form>

@@ -4,15 +4,15 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 text-sm font-bold transition disabled:pointer-events-none disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d6b57]",
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-[15px] font-semibold transition active:scale-[.98] disabled:pointer-events-none disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]",
   {
     variants: {
       variant: {
-        primary: "bg-[#151917] text-white hover:bg-[#222a26]",
-        accent: "bg-[#b9ff45] text-[#151917] hover:bg-[#a9ef36]",
-        secondary: "border border-[#d8ded5] bg-white text-[#151917] hover:bg-[#f4f6f0]",
-        ghost: "text-[#151917] hover:bg-[#e8ebe3]",
-        danger: "bg-[#f7dfdc] text-[#8f251f] hover:bg-[#f1cbc6]",
+        primary: "bg-[var(--accent)] text-black hover:brightness-95",
+        accent: "bg-[var(--accent)] text-black hover:brightness-95",
+        secondary: "bg-[var(--surface-2)] text-white hover:brightness-110",
+        ghost: "text-[var(--accent)] hover:bg-[var(--accent-soft)]",
+        danger: "bg-[color-mix(in_srgb,var(--red)_16%,transparent)] text-[var(--red)]",
       },
       size: {
         default: "h-11",

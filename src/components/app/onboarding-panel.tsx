@@ -34,13 +34,13 @@ export function OnboardingPanel() {
   }
 
   return (
-    <Card className="mb-5 border-[#b9ff45] bg-[#f8ffe8]">
+    <Card className="mb-5 ring-1 ring-[var(--accent)]">
       <CardHeader>
         <div>
-          <p className="text-xs font-black uppercase text-[#1d6b57]">Primer ajuste</p>
+          <p className="text-xs text-[var(--accent)]">Primer ajuste</p>
           <h2 className="text-xl font-black">Armemos tu perfil de entrenamiento</h2>
         </div>
-        <CheckCircle2 className="text-[#1d6b57]" />
+        <CheckCircle2 className="text-[var(--accent)]" />
       </CardHeader>
       <CardContent className="grid gap-4 md:grid-cols-4">
         <Label>
@@ -68,7 +68,7 @@ export function OnboardingPanel() {
           <Input type="number" min={1} max={7} value={weeklyGoal} onChange={(event) => setWeeklyGoal(Number(event.target.value))} />
         </Label>
         <div className="md:col-span-4">
-          <p className="mb-2 text-xs font-black uppercase text-[#66706b]">Prioridad muscular</p>
+          <p className="mb-2 text-xs text-[var(--label-2)]">Prioridad muscular</p>
           <div className="flex flex-wrap gap-2">
             {muscleOptions.map((muscle) => (
               <button
@@ -77,8 +77,8 @@ export function OnboardingPanel() {
                 onClick={() => toggleMuscle(muscle)}
                 className={`rounded-full border px-3 py-2 text-xs font-black ${
                   priorityMuscles.includes(muscle)
-                    ? "border-[#151917] bg-[#151917] text-white"
-                    : "border-[#d8ded5] bg-white text-[#66706b]"
+                    ? "border-[var(--accent)] bg-[var(--accent)] text-black"
+                    : "border-white/10 bg-[var(--surface-2)] text-[var(--label-2)]"
                 }`}
               >
                 {muscle}

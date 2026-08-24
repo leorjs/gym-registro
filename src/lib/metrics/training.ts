@@ -51,6 +51,19 @@ export function getCurrentStreak(workouts: Pick<Workout, "date">[], today = new 
   return streak;
 }
 
+export function getWeekStreak(workouts: Pick<Workout, "date">[], today = new Date()) {
+  const weeks = new Set(workouts.map((workout) => format(startOfWeek(parseISO(workout.date), { weekStartsOn: 1 }), "yyyy-MM-dd")));
+  if (!weeks.size) return 0;
+  let cursor = startOfWeek(today, { weekStartsOn: 1 });
+  if (!weeks.has(format(cursor, "yyyy-MM-dd"))) cursor = subWeeks(cursor, 1);
+  let streak = 0;
+  while (weeks.has(format(cursor, "yyyy-MM-dd"))) {
+    streak += 1;
+    cursor = subWeeks(cursor, 1);
+  }
+  return streak;
+}
+
 export function getWeeklySessions(workouts: Pick<Workout, "date">[], date = new Date()) {
   const start = startOfWeek(date, { weekStartsOn: 1 });
   const end = endOfWeek(date, { weekStartsOn: 1 });

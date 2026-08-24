@@ -54,16 +54,16 @@ export function LoginForm() {
           <span className="text-xs text-[#b23b32]">{form.formState.errors.password.message}</span>
         )}
       </Label>
-      {error && <p className="rounded-lg bg-[#f7dfdc] p-3 text-sm font-semibold text-[#8f251f]">{error}</p>}
+      {error && <p className="rounded-xl bg-[color-mix(in_srgb,var(--red)_16%,transparent)] p-3 text-sm text-[var(--red)]">{error}</p>}
       <Button type="submit" size="lg" disabled={!configReady || form.formState.isSubmitting}>
         <LogIn size={18} />
         Entrar
       </Button>
-      <div className="flex flex-wrap justify-between gap-3 text-sm font-bold text-[#66706b]">
-        <Link className="hover:text-[#151917]" href="/register">
+      <div className="flex flex-wrap justify-between gap-3 text-sm text-[var(--label-2)]">
+        <Link className="hover:text-white" href="/register">
           Crear cuenta
         </Link>
-        <Link className="hover:text-[#151917]" href="/forgot-password">
+        <Link className="hover:text-white" href="/forgot-password">
           Recuperar clave
         </Link>
       </div>

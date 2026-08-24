@@ -56,16 +56,16 @@ export function RegisterForm() {
         <Input type="password" autoComplete="new-password" {...form.register("password")} />
       </Label>
       {Object.values(form.formState.errors)[0]?.message && (
-        <p className="rounded-lg bg-[#f7dfdc] p-3 text-sm font-semibold text-[#8f251f]">
+        <p className="rounded-xl bg-[color-mix(in_srgb,var(--red)_16%,transparent)] p-3 text-sm text-[var(--red)]">
           {Object.values(form.formState.errors)[0]?.message}
         </p>
       )}
-      {error && <p className="rounded-lg bg-[#f7dfdc] p-3 text-sm font-semibold text-[#8f251f]">{error}</p>}
+      {error && <p className="rounded-xl bg-[color-mix(in_srgb,var(--red)_16%,transparent)] p-3 text-sm text-[var(--red)]">{error}</p>}
       <Button type="submit" size="lg" disabled={!configReady || form.formState.isSubmitting}>
         <UserPlus size={18} />
         Crear cuenta
       </Button>
-      <Link className="text-sm font-bold text-[#66706b] hover:text-[#151917]" href="/login">
+      <Link className="text-sm text-[var(--label-2)] hover:text-white" href="/login">
         Ya tengo cuenta
       </Link>
     </form>

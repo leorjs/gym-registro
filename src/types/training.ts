@@ -21,10 +21,18 @@ export type UserProfile = {
   unit: WeightUnit;
   goal: Goal;
   weeklyGoal: number;
+  targetWeight?: number;
   priorityMuscles: MuscleGroup[];
   onboardingComplete: boolean;
   createdAt: string;
   updatedAt: string;
+};
+
+export type BodyWeightEntry = {
+  id: string;
+  date: string;
+  weight: number;
+  createdAt: string;
 };
 
 export type Exercise = {
