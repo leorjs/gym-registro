@@ -92,6 +92,7 @@ export function useWorkouts(uid?: string) {
       const now = new Date().toISOString();
       const summary = summarizeSets(draft.sets);
       const payload = {
+        ...(draft.routineId ? { routineId: draft.routineId } : {}),
         date: draft.date,
         focus: draft.focus,
         durationMinutes: draft.durationMinutes,

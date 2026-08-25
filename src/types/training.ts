@@ -68,6 +68,7 @@ export type WorkoutSet = {
 
 export type Workout = {
   id: string;
+  routineId?: string;
   date: string;
   focus: string;
   durationMinutes: number;
@@ -89,6 +90,10 @@ export type RoutineExercise = {
   reps: number;
   weight: number;
   restSeconds: number;
+  setPrescriptions?: Array<{
+    reps: number;
+    weight: number;
+  }>;
 };
 
 export type Routine = {

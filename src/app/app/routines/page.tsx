@@ -175,7 +175,16 @@ function RoutineEditor({ routine, saving, onClose, onSave }: { routine: Routine;
   }
 
   function updateExercise(index: number, patch: Partial<RoutineExercise>) {
-    setExercises((current) => current.map((exercise, position) => position === index ? { ...exercise, ...patch } : exercise));
+    setExercises((current) => current.map((exercise, position) => {
+      if (position !== index) return exercise;
+      const updated = { ...exercise, ...patch };
+      if (!exercise.setPrescriptions) return updated;
+      updated.setPrescriptions = Array.from({ length: updated.sets }, (_, setIndex) => ({
+        reps: patch.reps ?? exercise.setPrescriptions?.[setIndex]?.reps ?? updated.reps,
+        weight: patch.weight ?? exercise.setPrescriptions?.[setIndex]?.weight ?? updated.weight,
+      }));
+      return updated;
+    }));
   }
 
   async function save() {

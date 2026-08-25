@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronLeft, ChevronRight, Dumbbell, Info, Lightbulb, Minus, Pause, Play, Plus, Search, X } from "lucide-react";
+import { Check, CheckCircle2, ChevronLeft, ChevronRight, Dumbbell, Gauge, Info, Lightbulb, Minus, Pause, Play, Plus, Save, Search, Sparkles, X } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { useRoutines } from "@/lib/hooks/use-routines";
 import { useWorkouts } from "@/lib/hooks/use-workouts";
 import { alternativesForExercise, exerciseByIdOrName, exerciseGifSrc, exerciseImageSrc, exerciseMediaAttribution } from "@/lib/data/exercise-catalog";
 import { estimateRoutineMinutes } from "@/lib/data/catalog";
+import { effortFromRpe, progressionMessage, routineExercisesFromSets, rpeForEffort, type ExerciseEffort } from "@/lib/training/workout-progress";
 import type { Workout, WorkoutSet } from "@/types/training";
 
 function makeSet(overrides: Partial<WorkoutSet> = {}): WorkoutSet {
@@ -29,9 +30,11 @@ function clock(total: number) {
 export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout; initialRoutineId?: string }) {
   const router = useRouter();
   const { user, profile } = useAuth();
-  const { routines, loading: routinesLoading } = useRoutines(user?.uid);
-  const { saveWorkout } = useWorkouts(user?.uid);
+  const { routines, loading: routinesLoading, saveRoutine } = useRoutines(user?.uid);
+  const { workouts, loading: workoutsLoading, saveWorkout } = useWorkouts(user?.uid);
   const initialRoutineApplied = useRef(false);
+  const [activeWorkoutId, setActiveWorkoutId] = useState(workout?.id);
+  const [sourceRoutineId, setSourceRoutineId] = useState(workout?.routineId ?? initialRoutineId);
   const [focus, setFocus] = useState(workout?.focus ?? "");
   const [sets, setSets] = useState<WorkoutSet[]>(workout?.sets.length ? workout.sets : []);
   const [exerciseIndex, setExerciseIndex] = useState(0);
@@ -47,22 +50,42 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
   const applyRoutine = useCallback((routineId: string) => {
     const routine = routines.find((item) => item.id === routineId);
     if (!routine) return false;
+    setSourceRoutineId(routineId);
     setFocus(routine.name);
     setExerciseIndex(0);
     setPlaying(true);
     setMediaFailed(false);
-    setSets(routine.exercises.flatMap((exercise) => Array.from({ length: exercise.sets }, (_, index) => makeSet({
-      exerciseId: exercise.exerciseId ?? exercise.exerciseName.toLowerCase().replaceAll(" ", "-"), exerciseName: exercise.exerciseName,
-      muscleGroup: exercise.muscleGroup, reps: exercise.reps, weight: exercise.weight,
-      restSeconds: exercise.restSeconds, setNumber: index + 1,
-    }))));
+    setSets(routine.exercises.flatMap((exercise) => {
+      const prescriptions = exercise.setPrescriptions?.length
+        ? exercise.setPrescriptions
+        : Array.from({ length: exercise.sets }, () => ({ reps: exercise.reps, weight: exercise.weight }));
+      return prescriptions.map((prescription, index) => makeSet({
+        exerciseId: exercise.exerciseId ?? exercise.exerciseName.toLowerCase().replaceAll(" ", "-"), exerciseName: exercise.exerciseName,
+        muscleGroup: exercise.muscleGroup, reps: prescription.reps, weight: prescription.weight,
+        restSeconds: exercise.restSeconds, setNumber: index + 1,
+      }));
+    }));
     return true;
   }, [routines]);
 
   useEffect(() => {
-    if (!initialRoutineId || workout || routinesLoading || initialRoutineApplied.current) return;
-    initialRoutineApplied.current = applyRoutine(initialRoutineId);
-  }, [applyRoutine, initialRoutineId, routinesLoading, workout]);
+    if (!initialRoutineId || workout || routinesLoading || workoutsLoading || initialRoutineApplied.current) return;
+    const timer = window.setTimeout(() => {
+      const today = format(new Date(), "yyyy-MM-dd");
+      const draft = workouts.find((item) => item.status === "draft" && item.routineId === initialRoutineId && item.date === today);
+      if (draft?.sets.length) {
+        initialRoutineApplied.current = true;
+        setActiveWorkoutId(draft.id);
+        setSourceRoutineId(draft.routineId ?? initialRoutineId);
+        setFocus(draft.focus);
+        setSets(draft.sets);
+        setElapsed(Math.max(0, draft.durationMinutes * 60));
+        return;
+      }
+      initialRoutineApplied.current = applyRoutine(initialRoutineId);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [applyRoutine, initialRoutineId, routinesLoading, workout, workouts, workoutsLoading]);
 
   useEffect(() => {
     if (!focus) return;
@@ -93,6 +116,9 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
       .filter((exercise) => !normalized || `${exercise.name} ${exercise.equipment}`.toLowerCase().includes(normalized))
       .slice(0, 40);
   }, [alternativeQuery, catalogExercise, usedExerciseIds]);
+  const currentEffort = effortFromRpe(current?.sets.find((set) => set.rpe !== undefined)?.rpe);
+  const currentWeight = current ? Math.max(...current.sets.map((set) => set.weight)) : 0;
+  const currentCompleted = current?.sets.filter((set) => set.completed !== false).length ?? 0;
 
   function updateSet(id: string, patch: Partial<WorkoutSet>) {
     setSets((items) => items.map((set) => set.id === id ? { ...set, ...patch } : set));
@@ -127,17 +153,38 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
     setMediaFailed(false);
   }
 
+  function setExerciseEffort(effort: ExerciseEffort) {
+    if (!current) return;
+    const rpe = rpeForEffort(effort);
+    setSets((items) => items.map((set) => set.exerciseName === current.name ? { ...set, rpe } : set));
+  }
+
+  async function updateSourceRoutine() {
+    if (!sourceRoutineId) return;
+    const routine = routines.find((item) => item.id === sourceRoutineId);
+    if (!routine) return;
+    const exercises = routineExercisesFromSets(sets);
+    await saveRoutine({
+      ...routine,
+      exercises,
+      muscleGroups: [...new Set(exercises.map((exercise) => exercise.muscleGroup))],
+    });
+  }
+
   async function finish(status: "draft" | "completed") {
     if (!focus || !sets.length) return;
     setSaving(true);
     setSaveError(null);
     try {
-      await saveWorkout({
+      const savedId = await saveWorkout({
+        routineId: sourceRoutineId,
         date: workout?.date ?? format(new Date(), "yyyy-MM-dd"), focus,
         durationMinutes: Math.max(1, Math.round(elapsed / 60)), status,
         notes: workout?.notes ?? "", sets: sets.map((set, index) => ({ ...set, setNumber: index + 1 })),
-      }, workout?.id);
-      router.push("/app/history");
+      }, activeWorkoutId);
+      setActiveWorkoutId(savedId);
+      await updateSourceRoutine();
+      router.push(status === "completed" ? "/app" : "/app/history");
     } catch (reason) {
       setSaveError(reason instanceof Error ? reason.message : "No se pudo guardar el entrenamiento.");
       setSaving(false);
@@ -145,7 +192,7 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
   }
 
   if (!focus || !sets.length) {
-    if (routinesLoading) return <p className="rounded-[16px] bg-[var(--surface)] p-4 text-center text-[13px] text-[var(--label-2)]">Cargando tus rutinas guardadas…</p>;
+    if (routinesLoading || workoutsLoading) return <p className="rounded-[16px] bg-[var(--surface)] p-4 text-center text-[13px] text-[var(--label-2)]">Cargando tus rutinas guardadas…</p>;
     return <RoutineChooser routines={routines} onChoose={applyRoutine} />;
   }
 
@@ -154,7 +201,7 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
       <header className="mb-4 grid grid-cols-[44px_1fr_44px] items-center gap-3">
         <button aria-label="Descartar" onClick={() => router.back()} className="grid h-11 w-11 place-items-center rounded-full bg-[var(--surface)]"><X size={22} /></button>
         <div className="text-center"><h1 className="text-[18px] font-semibold">{focus}</h1><p className="mt-1 text-[13px] text-[var(--label-2)]">{clock(elapsed)} · {completed}/{sets.length} series</p></div>
-        <button type="button" aria-label={saving ? "Guardando entrenamiento" : "Finalizar"} disabled={saving} onClick={() => finish("completed")} className="grid h-11 w-11 place-items-center rounded-full bg-[var(--surface)] text-[var(--accent)] disabled:opacity-50"><Check size={22} /></button>
+        <button type="button" aria-label={saving ? "Guardando entrenamiento" : "Guardar y finalizar rutina"} disabled={saving} onClick={() => finish("completed")} className="grid h-11 w-11 place-items-center rounded-full bg-[var(--surface)] text-[var(--accent)] disabled:opacity-50"><Check size={22} /></button>
       </header>
       {saveError && <p role="alert" className="mb-3 rounded-xl bg-[color-mix(in_srgb,var(--red)_16%,transparent)] p-3 text-[13px] text-[var(--red)]">{saveError} Volvé a intentarlo.</p>}
       <div className="mb-5 h-1 overflow-hidden rounded-full bg-[var(--surface-3)]"><span className="block h-full rounded-full bg-[var(--accent)] transition-all" style={{ width: `${sets.length ? completed / sets.length * 100 : 0}%` }} /></div>
@@ -169,8 +216,8 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
 
       <div className="mb-2 flex items-center justify-between gap-3"><h2 className="min-w-0 flex-1 text-[24px] font-bold capitalize tracking-[-.02em]">{current.name}</h2><div className="flex shrink-0 gap-2"><button type="button" aria-label={`Cambiar ${current.name} por otro ejercicio del mismo músculo`} onClick={() => setChangingExercise(true)} className="grid h-10 w-10 place-items-center rounded-full bg-[var(--accent)] text-black"><Plus size={20} /></button><span className="grid h-10 w-10 place-items-center rounded-full bg-[var(--surface)]"><Info size={19} /></span></div></div>
       <div className="mb-2 flex flex-wrap gap-2"><span className="rounded-lg bg-[var(--surface-2)] px-3 py-1.5 text-[13px] capitalize text-[var(--label-2)]">{current.sets[0]?.muscleGroup}</span><span className="rounded-lg bg-[var(--surface-2)] px-3 py-1.5 text-[13px] text-[var(--label-2)]">Mejor: {Math.max(...current.sets.map((set) => set.weight))} {profile?.unit ?? "kg"}</span></div>
-      <p className="mb-2 text-[13px] text-[var(--label-3)]">Última vez: {current.sets.map((set) => `${set.weight}×${set.reps}`).join(", ")}</p>
-      <p className="mb-3 flex items-center gap-2 rounded-lg bg-[var(--accent-soft)] px-3 py-2 text-[13px] text-[var(--accent)]"><Lightbulb size={15} />La última vez completaste todas las reps — mantené la técnica.</p>
+      <p className="mb-2 text-[13px] text-[var(--label-3)]">Sesión actual: {current.sets.map((set) => `${set.weight}×${set.reps}`).join(", ")}</p>
+      <p className="mb-3 flex items-center gap-2 rounded-lg bg-[var(--accent-soft)] px-3 py-2 text-[13px] text-[var(--accent)]"><Lightbulb size={15} />Los cambios se guardarán como base de la próxima sesión.</p>
 
       <section className="rounded-[18px] bg-[var(--surface)] p-4">
         <div className="mb-2 grid grid-cols-[28px_1fr_1fr_38px] gap-2 text-center text-[11px] uppercase text-[var(--label-3)]"><span /><span>Peso ({profile?.unit ?? "kg"})</span><span>Reps</span><span /></div>
@@ -185,8 +232,27 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
         <Button variant="secondary" size="sm" className="mt-3 w-full" onClick={() => setSets((items) => [...items, makeSet({ ...current.sets.at(-1), id: undefined, setNumber: current.sets.length + 1, completed: false })])}><Plus size={15} />Agregar serie</Button>
       </section>
 
+      <section className="mt-3 overflow-hidden rounded-[18px] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--accent)_17%,var(--surface)),var(--surface))] p-4">
+        <div className="flex items-start gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--accent)] text-black"><Gauge size={20} /></span>
+          <div className="min-w-0 flex-1"><h3 className="text-[16px] font-semibold">¿Cómo se siente este peso?</h3><p className="mt-1 text-[12px] leading-5 text-[var(--label-2)]">{currentCompleted}/{current.sets.length} series completas · Usaremos tu respuesta para sugerir la próxima carga.</p></div>
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          {([{"value":"easy","label":"Fácil","hint":"Puedo subir"},{"value":"right","label":"Justo","hint":"Está bien"},{"value":"hard","label":"Pesado","hint":"Me costó"}] as const).map((option) => (
+            <button key={option.value} type="button" aria-pressed={currentEffort === option.value} onClick={() => setExerciseEffort(option.value)} className={`rounded-xl px-2 py-2.5 text-center transition active:scale-[.97] ${currentEffort === option.value ? "bg-[var(--accent)] text-black" : "bg-black/25 text-white"}`}>
+              <strong className="block text-[13px]">{option.label}</strong><span className={`mt-0.5 block text-[10px] ${currentEffort === option.value ? "text-black/65" : "text-[var(--label-3)]"}`}>{option.hint}</span>
+            </button>
+          ))}
+        </div>
+        <p aria-live="polite" className="mt-3 flex items-start gap-2 rounded-xl bg-black/20 px-3 py-2.5 text-[12px] leading-5 text-[var(--label-2)]"><Sparkles size={15} className="mt-0.5 shrink-0 text-[var(--accent)]" />{progressionMessage(currentEffort, currentWeight, profile?.unit ?? "kg")}</p>
+      </section>
+
       <div className="mt-3 grid grid-cols-2 gap-2"><Button variant="secondary" disabled={exerciseIndex === 0} onClick={() => goToExercise(exerciseIndex - 1)}><ChevronLeft size={16} />Anterior</Button><Button variant="secondary" disabled={exerciseIndex >= groups.length - 1} onClick={() => goToExercise(exerciseIndex + 1)}>Siguiente<ChevronRight size={16} /></Button></div>
-      <Button variant="ghost" className="mt-2 w-full text-[var(--label-2)]" onClick={() => finish("draft")}>Guardar y terminar después</Button>
+      <section className="mt-4 rounded-[18px] border border-[color-mix(in_srgb,var(--accent)_28%,transparent)] bg-[var(--surface)] p-4">
+        <div className="mb-3 flex items-start gap-3"><CheckCircle2 size={22} className="mt-0.5 shrink-0 text-[var(--accent)]" /><div><h3 className="text-[17px] font-semibold">Terminar la rutina</h3><p className="mt-1 text-[12px] leading-5 text-[var(--label-2)]">Guardaremos pesos, repeticiones, ejercicios elegidos y esfuerzo. El día aparecerá completado en el calendario.</p></div></div>
+        <Button className="w-full" disabled={saving} onClick={() => finish("completed")}><CheckCircle2 size={17} />{saving ? "Guardando…" : "Guardar y finalizar rutina"}</Button>
+        <Button variant="secondary" className="mt-2 w-full" disabled={saving} onClick={() => finish("draft")}><Save size={16} />Guardar progreso y salir</Button>
+      </section>
 
       {rest > 0 && <div className="fixed inset-x-0 bottom-[78px] z-50 mx-auto flex w-[calc(100%-32px)] max-w-[528px] items-center gap-4 rounded-[16px] bg-[rgba(28,28,30,.94)] p-4 shadow-2xl backdrop-blur-xl"><strong className="text-[30px]">{clock(rest)}</strong><span className="h-1 flex-1 overflow-hidden rounded-full bg-[var(--surface-3)]"><i className="block h-full bg-[var(--accent)]" style={{ width: `${Math.min(100, rest / 90 * 100)}%` }} /></span><button onClick={() => setRest((value) => value + 15)} className="text-[var(--accent)]">+ 15s</button><Button className="min-h-10 px-4" onClick={() => setRest(0)}>Saltar</Button></div>}
 

@@ -5,7 +5,7 @@ import { addDays, addWeeks, format, isSameDay, startOfWeek } from "date-fns";
 import { es } from "date-fns/locale";
 import { useState } from "react";
 import { Area, AreaChart, ReferenceLine, ResponsiveContainer, YAxis } from "recharts";
-import { CalendarDays, ChevronLeft, ChevronRight, Dumbbell, Flame, Settings, Moon, Play, Plus, Sparkles } from "lucide-react";
+import { CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight, Dumbbell, Flame, Settings, Moon, Play, Plus, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getWeekStreak, getWeeklySessions } from "@/lib/metrics/training";
@@ -32,9 +32,12 @@ export default function HomePage() {
   const selectedDate = weekDays.find((day) => day.getDay() === selectedWeekday) ?? weekDays[0];
   const selectedPlan = plan.days.find((day) => day.weekday === selectedWeekday);
   const selectedRoutine = routines.find((routine) => routine.id === selectedPlan?.routineId);
-  const doneDates = new Set(workouts.filter((w) => w.status === "completed").map((w) => w.date));
-  const weeklySessions = getWeeklySessions(workouts);
-  const streak = getWeekStreak(workouts);
+  const completedWorkouts = workouts.filter((workout) => workout.status === "completed");
+  const doneDates = new Set(completedWorkouts.map((workout) => workout.date));
+  const selectedDateKey = format(selectedDate, "yyyy-MM-dd");
+  const selectedWorkout = completedWorkouts.find((workout) => workout.date === selectedDateKey);
+  const weeklySessions = getWeeklySessions(completedWorkouts);
+  const streak = getWeekStreak(completedWorkouts);
   const previousWeight = bodyweights.at(-2);
   const weightDelta = latestWeight && previousWeight ? latestWeight.weight - previousWeight.weight : 0;
 
@@ -66,11 +69,12 @@ export default function HomePage() {
               const iso = format(day, "yyyy-MM-dd");
               const planned = plan.days.some((item) => item.weekday === day.getDay());
               const current = isSameDay(day, today);
+              const done = doneDates.has(iso);
               return (
-                <button key={iso} type="button" aria-label={`${format(day, "EEEE d 'de' MMMM", { locale: es })}${planned ? ", entrenamiento programado" : ", descanso"}`} onClick={() => setSelectedWeekday(day.getDay())} className={`grid justify-items-center gap-1 rounded-xl px-0.5 py-1 text-[13px] transition-colors ${selectedWeekday === day.getDay() ? "bg-[var(--surface-2)]" : ""}`}>
-                  <span className="text-[10px] uppercase text-[var(--label-3)]">{format(day, "EEEEE", { locale: es })}</span>
-                  <span className={`grid h-8 w-8 place-items-center rounded-full ${current ? "bg-[var(--accent)] font-semibold text-black" : ""}`}>{format(day, "d")}</span>
-                  <span className={`h-1 w-1 rounded-full ${doneDates.has(iso) ? "bg-[var(--accent)]" : planned ? "bg-[var(--label-3)]" : "bg-transparent"}`} />
+                <button key={iso} type="button" aria-label={`${format(day, "EEEE d 'de' MMMM", { locale: es })}${done ? ", rutina completada" : planned ? ", entrenamiento programado" : ", descanso"}`} onClick={() => setSelectedWeekday(day.getDay())} className={`grid justify-items-center gap-1 rounded-xl px-0.5 py-1 text-[13px] transition-colors ${done ? "bg-[var(--accent-soft)] ring-1 ring-[color-mix(in_srgb,var(--accent)_45%,transparent)]" : selectedWeekday === day.getDay() ? "bg-[var(--surface-2)]" : ""}`}>
+                  <span className={`text-[10px] uppercase ${done ? "font-semibold text-[var(--accent)]" : "text-[var(--label-3)]"}`}>{format(day, "EEEEE", { locale: es })}</span>
+                  <span className={`grid h-8 w-8 place-items-center rounded-full ${done ? "bg-[var(--accent)] font-bold text-black" : current ? "ring-1 ring-[var(--accent)] font-semibold text-[var(--accent)]" : ""}`}>{done ? <Check size={16} strokeWidth={3} /> : format(day, "d")}</span>
+                  <span className={`h-1 w-1 rounded-full ${done ? "bg-[var(--accent)]" : planned ? "bg-[var(--label-3)]" : "bg-transparent"}`} />
                 </button>
               );
             })}
@@ -78,10 +82,10 @@ export default function HomePage() {
 
           <div className="mt-4 rounded-xl bg-[var(--surface-2)] p-3">
             <div className="flex items-center gap-3">
-              <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${selectedPlan ? "bg-[var(--accent)] text-black" : "bg-[var(--surface-3)]"}`}>{selectedPlan ? <Dumbbell size={17} /> : <Moon size={17} />}</span>
+              <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${selectedWorkout || selectedPlan ? "bg-[var(--accent)] text-black" : "bg-[var(--surface-3)]"}`}>{selectedWorkout ? <CheckCircle2 size={17} /> : selectedPlan ? <Dumbbell size={17} /> : <Moon size={17} />}</span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[11px] uppercase text-[var(--label-3)]">{format(selectedDate, "EEEE d", { locale: es })}</span>
-                <span className="block truncate text-[17px]">{selectedPlan?.focus ?? "Día de descanso"}</span>
+                <span className="block truncate text-[17px]">{selectedWorkout ? `${selectedWorkout.focus} · Completada` : selectedPlan?.focus ?? "Día de descanso"}</span>
               </span>
               {selectedRoutine && <span className="text-[12px] text-[var(--label-2)]">≈ {estimateRoutineMinutes(selectedRoutine)} min</span>}
             </div>
