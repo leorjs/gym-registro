@@ -4,14 +4,15 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronRight, Dumbbell, Pause, Play, Plus, Search, Star, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ExerciseVisual } from "@/components/app/exercise-visual";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
   equipmentFor,
+  exerciseAttributionFor,
   exerciseBodyParts,
   exerciseGifSrc,
   exerciseImageSrc,
-  exerciseMediaAttribution,
   spanishInstructionsFor,
 } from "@/lib/data/exercise-catalog";
 import { useAuth } from "@/lib/hooks/use-auth";
@@ -115,7 +116,7 @@ export default function ExercisesPage() {
       <header className="mb-[18px] mt-1 flex items-end justify-between gap-3">
         <div>
           <h1 className="text-[34px] font-bold leading-[1.06] tracking-[-.028em]">Ejercicios</h1>
-          <p className="mt-1 text-[15px] text-[var(--label-2)]">1.324 movimientos con demostración animada</p>
+          <p className="mt-1 text-[15px] text-[var(--label-2)]">{exercises.length.toLocaleString("es-AR")} movimientos con demostración visual</p>
         </div>
         <button onClick={() => setCreating((value) => !value)} aria-label="Nuevo ejercicio" className="grid h-9 w-9 place-items-center rounded-full bg-[var(--surface)]"><Plus size={19} /></button>
       </header>
@@ -164,7 +165,7 @@ export default function ExercisesPage() {
         </CardContent>
       </Card>
       {filtered.length > shown && <Button variant="secondary" className="mt-3 w-full" onClick={() => setShown((value) => value + pageSize)}>Mostrar más</Button>}
-      <a href="https://gymvisual.com/" target="_blank" rel="noreferrer" className="mt-4 block text-center text-[11px] text-[var(--label-3)]">{exerciseMediaAttribution}</a>
+      <p className="mt-4 text-center text-[11px] text-[var(--label-3)]"><a href="https://gymvisual.com/" target="_blank" rel="noreferrer">© Gym visual</a> · <a href="https://bryllim.github.io/workout-guide/" target="_blank" rel="noreferrer">Bryl Lim / Everkinetic · CC BY-SA 4.0</a></p>
 
       {selected && <ExerciseDetail exercise={selected} routines={routines} onClose={() => setSelected(null)} onAddToRoutine={addExerciseToRoutine} />}
     </>
@@ -190,6 +191,7 @@ function ExerciseDetail({ exercise, routines, onClose, onAddToRoutine }: { exerc
   const [error, setError] = useState("");
   const gif = exerciseGifSrc(exercise);
   const image = exerciseImageSrc(exercise);
+  const attribution = exerciseAttributionFor(exercise);
 
   useEffect(() => {
     let active = true;
@@ -205,8 +207,7 @@ function ExerciseDetail({ exercise, routines, onClose, onAddToRoutine }: { exerc
 
         {(gif || image) ? (
           <button type="button" onClick={() => setPlaying((value) => !value)} className="relative mb-4 block aspect-square w-full overflow-hidden rounded-[18px] bg-white">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={playing ? gif : image} alt={exercise.name} className="h-full w-full object-contain" />
+            <ExerciseVisual key={exercise.id} exercise={exercise} playing={playing} alt={exercise.name} className="h-full w-full object-contain" />
             <span className="absolute bottom-3 right-3 flex items-center gap-2 rounded-full bg-black/50 px-3 py-1.5 text-[12px] text-white backdrop-blur">{playing ? <Pause size={13} /> : <Play size={13} />}{playing ? "Pausar" : "Reproducir"}</span>
           </button>
         ) : <div className="mb-4 grid aspect-video place-items-center rounded-[18px] bg-[var(--surface)] text-[var(--label-3)]"><Dumbbell size={34} /></div>}
@@ -214,7 +215,7 @@ function ExerciseDetail({ exercise, routines, onClose, onAddToRoutine }: { exerc
         {!!instructions.length && <div className="mb-4 rounded-[16px] bg-[var(--surface)] p-4"><h3 className="mb-2 text-[16px] font-semibold">Cómo hacerlo</h3><ol className="grid list-decimal gap-2 pl-5 text-[13px] leading-relaxed text-[var(--label-2)]">{instructions.map((instruction, index) => <li key={index}>{instruction}</li>)}</ol></div>}
 
         {!!routines.length && <div className="rounded-[16px] bg-[var(--surface)] p-4"><h3 className="mb-2 text-[16px] font-semibold">Agregar a una rutina</h3><Select value={routineId} onChange={(event) => setRoutineId(event.target.value)}>{routines.map((routine) => <option value={routine.id} key={routine.id}>{routine.name}</option>)}</Select>{error && <p className="mt-2 text-[12px] text-[var(--red)]">{error}</p>}<Button className="mt-2 w-full" disabled={!routineId || adding} onClick={async () => { setAdding(true); setError(""); try { await onAddToRoutine(exercise, routineId); onClose(); } catch (reason) { setError(reason instanceof Error ? reason.message : "No se pudo agregar el ejercicio."); } finally { setAdding(false); } }}>{adding ? "Agregando…" : "Agregar al plan"}</Button></div>}
-        <a href="https://gymvisual.com/" target="_blank" rel="noreferrer" className="mt-4 block text-center text-[11px] text-[var(--label-3)]">{exerciseMediaAttribution}</a>
+        <a href={attribution.href} target="_blank" rel="noreferrer" className="mt-4 block text-center text-[11px] text-[var(--label-3)]">{attribution.label}</a>
       </section>
     </div>
   );

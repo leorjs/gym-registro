@@ -6,12 +6,13 @@ import { Check, CheckCircle2, ChevronLeft, ChevronRight, Dumbbell, Gauge, Info, 
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ExerciseVisual } from "@/components/app/exercise-visual";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useRoutines } from "@/lib/hooks/use-routines";
 import { useWorkouts } from "@/lib/hooks/use-workouts";
-import { alternativesForExercise, exerciseByIdOrName, exerciseGifSrc, exerciseImageSrc, exerciseMediaAttribution } from "@/lib/data/exercise-catalog";
+import { alternativesForExercise, exerciseAttributionFor, exerciseByIdOrName, exerciseGifSrc, exerciseImageSrc } from "@/lib/data/exercise-catalog";
 import { estimateRoutineMinutes } from "@/lib/data/catalog";
-import { effortFromRpe, progressionMessage, routineExercisesFromSets, rpeForEffort, type ExerciseEffort } from "@/lib/training/workout-progress";
+import { adaptiveRestSeconds, effortFromRpe, nextWeightForSet, routineExercisesFromSets, rpeForEffort, type ExerciseEffort } from "@/lib/training/workout-progress";
 import type { Workout, WorkoutSet } from "@/types/training";
 
 function makeSet(overrides: Partial<WorkoutSet> = {}): WorkoutSet {
@@ -27,6 +28,12 @@ function clock(total: number) {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 }
 
+const effortOptions = [
+  { value: "easy", label: "Fácil", direction: 1 },
+  { value: "right", label: "Justo", direction: 0 },
+  { value: "hard", label: "Difícil", direction: -1 },
+] as const;
+
 export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout; initialRoutineId?: string }) {
   const router = useRouter();
   const { user, profile } = useAuth();
@@ -40,6 +47,7 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
   const [exerciseIndex, setExerciseIndex] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [rest, setRest] = useState(0);
+  const [restTotal, setRestTotal] = useState(90);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(true);
@@ -109,6 +117,7 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
   const catalogExercise = current ? exerciseByIdOrName(current.sets[0]?.exerciseId, current.name) : undefined;
   const gif = exerciseGifSrc(catalogExercise);
   const image = exerciseImageSrc(catalogExercise);
+  const attribution = exerciseAttributionFor(catalogExercise);
   const usedExerciseIds = useMemo(() => [...new Set(sets.map((set) => set.exerciseId))], [sets]);
   const alternatives = useMemo(() => {
     const normalized = alternativeQuery.trim().toLowerCase();
@@ -116,8 +125,6 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
       .filter((exercise) => !normalized || `${exercise.name} ${exercise.equipment}`.toLowerCase().includes(normalized))
       .slice(0, 40);
   }, [alternativeQuery, catalogExercise, usedExerciseIds]);
-  const currentEffort = effortFromRpe(current?.sets.find((set) => set.rpe !== undefined)?.rpe);
-  const currentWeight = current ? Math.max(...current.sets.map((set) => set.weight)) : 0;
   const currentCompleted = current?.sets.filter((set) => set.completed !== false).length ?? 0;
 
   function updateSet(id: string, patch: Partial<WorkoutSet>) {
@@ -127,7 +134,12 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
   function toggleSet(set: WorkoutSet) {
     const done = set.completed === false;
     updateSet(set.id, { completed: done });
-    if (done) setRest(set.restSeconds ?? 90);
+    if (done) {
+      const completedInExercise = current?.sets.filter((item) => item.completed !== false).length ?? 0;
+      const adaptiveRest = adaptiveRestSeconds(set.restSeconds ?? 90, completedInExercise);
+      setRestTotal(adaptiveRest);
+      setRest(adaptiveRest);
+    }
   }
 
   function goToExercise(index: number) {
@@ -153,17 +165,15 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
     setMediaFailed(false);
   }
 
-  function setExerciseEffort(effort: ExerciseEffort) {
-    if (!current) return;
-    const rpe = rpeForEffort(effort);
-    setSets((items) => items.map((set) => set.exerciseName === current.name ? { ...set, rpe } : set));
+  function setSeriesEffort(setId: string, effort: ExerciseEffort) {
+    updateSet(setId, { rpe: rpeForEffort(effort) });
   }
 
   async function updateSourceRoutine() {
     if (!sourceRoutineId) return;
     const routine = routines.find((item) => item.id === sourceRoutineId);
     if (!routine) return;
-    const exercises = routineExercisesFromSets(sets);
+    const exercises = routineExercisesFromSets(sets, profile?.unit ?? "kg");
     await saveRoutine({
       ...routine,
       exercises,
@@ -208,11 +218,10 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
 
       <p className="mb-2 text-[13px] text-[var(--label-2)]">Ejercicio {exerciseIndex + 1} / {groups.length}</p>
       {!mediaFailed && (gif || image) && <button type="button" onClick={() => setPlaying((value) => !value)} className="relative mb-3 block aspect-square w-full overflow-hidden rounded-[18px] bg-white">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={playing ? gif : image} alt={current.name} onError={() => { if (playing && image) setPlaying(false); else setMediaFailed(true); }} className="h-full w-full object-contain" />
+        {catalogExercise && <ExerciseVisual key={catalogExercise.id} exercise={catalogExercise} playing={playing} alt={current.name} onError={() => setMediaFailed(true)} className="h-full w-full object-contain" />}
         <span className="absolute bottom-3 right-3 flex items-center gap-2 rounded-full bg-black/45 px-3 py-1.5 text-[13px] text-white backdrop-blur">{playing ? <Pause size={13} /> : <Play size={13} />}{playing ? "tocá para pausar" : "tocá para reproducir"}</span>
       </button>}
-      {!mediaFailed && (gif || image) && <a href="https://gymvisual.com/" target="_blank" rel="noreferrer" className="mb-3 block text-center text-[10px] text-[var(--label-3)]">{exerciseMediaAttribution}</a>}
+      {!mediaFailed && (gif || image) && <a href={attribution.href} target="_blank" rel="noreferrer" className="mb-3 block text-center text-[10px] text-[var(--label-3)]">{attribution.label}</a>}
 
       <div className="mb-2 flex items-center justify-between gap-3"><h2 className="min-w-0 flex-1 text-[24px] font-bold capitalize tracking-[-.02em]">{current.name}</h2><div className="flex shrink-0 gap-2"><button type="button" aria-label={`Cambiar ${current.name} por otro ejercicio del mismo músculo`} onClick={() => setChangingExercise(true)} className="grid h-10 w-10 place-items-center rounded-full bg-[var(--accent)] text-black"><Plus size={20} /></button><span className="grid h-10 w-10 place-items-center rounded-full bg-[var(--surface)]"><Info size={19} /></span></div></div>
       <div className="mb-2 flex flex-wrap gap-2"><span className="rounded-lg bg-[var(--surface-2)] px-3 py-1.5 text-[13px] capitalize text-[var(--label-2)]">{current.sets[0]?.muscleGroup}</span><span className="rounded-lg bg-[var(--surface-2)] px-3 py-1.5 text-[13px] text-[var(--label-2)]">Mejor: {Math.max(...current.sets.map((set) => set.weight))} {profile?.unit ?? "kg"}</span></div>
@@ -222,11 +231,21 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
       <section className="rounded-[18px] bg-[var(--surface)] p-4">
         <div className="mb-2 grid grid-cols-[28px_1fr_1fr_38px] gap-2 text-center text-[11px] uppercase text-[var(--label-3)]"><span /><span>Peso ({profile?.unit ?? "kg"})</span><span>Reps</span><span /></div>
         {current.sets.map((set, index) => (
-          <div key={set.id} className={`grid grid-cols-[28px_1fr_1fr_38px] items-center gap-2 py-2 ${index ? "border-t border-white/10" : ""}`}>
-            <span className={`grid h-7 w-7 place-items-center rounded-full text-[13px] ${set.completed !== false ? "bg-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-black" : "bg-[var(--accent-soft)] text-[var(--accent)]"}`}>{index + 1}</span>
-            <Stepper ariaLabel={`Peso serie ${index + 1}`} value={set.weight} step={0.5} onChange={(value) => updateSet(set.id, { weight: value })} />
-            <Stepper ariaLabel={`Repeticiones serie ${index + 1}`} value={set.reps} step={1} onChange={(value) => updateSet(set.id, { reps: value })} />
-            <button aria-label={`Completar serie ${index + 1}`} onClick={() => toggleSet(set)} className={`grid h-9 w-9 place-items-center rounded-full ${set.completed !== false ? "bg-[var(--accent)] text-black" : "border-2 border-[var(--surface-3)] text-transparent"}`}><Check size={18} /></button>
+          <div key={set.id} className={`py-2 ${index ? "border-t border-white/10" : ""}`}>
+            <div className="grid grid-cols-[28px_1fr_1fr_38px] items-center gap-2">
+              <span className={`grid h-7 w-7 place-items-center rounded-full text-[13px] ${set.completed !== false ? "bg-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-black" : "bg-[var(--accent-soft)] text-[var(--accent)]"}`}>{index + 1}</span>
+              <Stepper ariaLabel={`Peso serie ${index + 1}`} value={set.weight} step={0.5} onChange={(value) => updateSet(set.id, { weight: value })} />
+              <Stepper ariaLabel={`Repeticiones serie ${index + 1}`} value={set.reps} step={1} onChange={(value) => updateSet(set.id, { reps: value })} />
+              <button aria-label={`Completar serie ${index + 1}`} onClick={() => toggleSet(set)} className={`grid h-9 w-9 place-items-center rounded-full ${set.completed !== false ? "bg-[var(--accent)] text-black" : "border-2 border-[var(--surface-3)] text-transparent"}`}><Check size={18} /></button>
+            </div>
+            <div className="ml-9 mt-2 grid grid-cols-3 gap-1.5">
+              {effortOptions.map((option) => {
+                const selected = effortFromRpe(set.rpe) === option.value;
+                const adjustment = profile?.unit === "lb" ? 1 : 0.5;
+                const hint = option.direction === 0 ? "igual" : `${option.direction > 0 ? "+" : "−"}${adjustment} ${profile?.unit ?? "kg"}`;
+                return <button key={option.value} type="button" aria-label={`${option.label} en serie ${index + 1}`} aria-pressed={selected} onClick={() => setSeriesEffort(set.id, option.value)} className={`rounded-lg px-1 py-1.5 text-[10px] transition active:scale-[.97] ${selected ? "bg-[var(--accent)] font-semibold text-black" : "bg-[var(--surface-2)] text-[var(--label-2)]"}`}><span className="block">{option.label}</span><span className={selected ? "text-black/60" : "text-[var(--label-3)]"}>{hint}</span></button>;
+              })}
+            </div>
           </div>
         ))}
         <Button variant="secondary" size="sm" className="mt-3 w-full" onClick={() => setSets((items) => [...items, makeSet({ ...current.sets.at(-1), id: undefined, setNumber: current.sets.length + 1, completed: false })])}><Plus size={15} />Agregar serie</Button>
@@ -235,16 +254,9 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
       <section className="mt-3 overflow-hidden rounded-[18px] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--accent)_17%,var(--surface)),var(--surface))] p-4">
         <div className="flex items-start gap-3">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--accent)] text-black"><Gauge size={20} /></span>
-          <div className="min-w-0 flex-1"><h3 className="text-[16px] font-semibold">¿Cómo se siente este peso?</h3><p className="mt-1 text-[12px] leading-5 text-[var(--label-2)]">{currentCompleted}/{current.sets.length} series completas · Usaremos tu respuesta para sugerir la próxima carga.</p></div>
+          <div className="min-w-0 flex-1"><h3 className="text-[16px] font-semibold">Carga de la próxima sesión</h3><p className="mt-1 text-[12px] leading-5 text-[var(--label-2)]">{currentCompleted}/{current.sets.length} series completas · Cada serie se ajusta según cómo la sentiste.</p></div>
         </div>
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          {([{"value":"easy","label":"Fácil","hint":"Puedo subir"},{"value":"right","label":"Justo","hint":"Está bien"},{"value":"hard","label":"Pesado","hint":"Me costó"}] as const).map((option) => (
-            <button key={option.value} type="button" aria-pressed={currentEffort === option.value} onClick={() => setExerciseEffort(option.value)} className={`rounded-xl px-2 py-2.5 text-center transition active:scale-[.97] ${currentEffort === option.value ? "bg-[var(--accent)] text-black" : "bg-black/25 text-white"}`}>
-              <strong className="block text-[13px]">{option.label}</strong><span className={`mt-0.5 block text-[10px] ${currentEffort === option.value ? "text-black/65" : "text-[var(--label-3)]"}`}>{option.hint}</span>
-            </button>
-          ))}
-        </div>
-        <p aria-live="polite" className="mt-3 flex items-start gap-2 rounded-xl bg-black/20 px-3 py-2.5 text-[12px] leading-5 text-[var(--label-2)]"><Sparkles size={15} className="mt-0.5 shrink-0 text-[var(--accent)]" />{progressionMessage(currentEffort, currentWeight, profile?.unit ?? "kg")}</p>
+        <p aria-live="polite" className="mt-3 flex items-start gap-2 rounded-xl bg-black/20 px-3 py-2.5 text-[12px] leading-5 text-[var(--label-2)]"><Sparkles size={15} className="mt-0.5 shrink-0 text-[var(--accent)]" /><span><strong className="text-white">Siguiente:</strong> {current.sets.map((set, index) => `S${index + 1} ${nextWeightForSet(set, profile?.unit ?? "kg")} ${profile?.unit ?? "kg"} × ${set.reps}`).join(" · ")}</span></p>
       </section>
 
       <div className="mt-3 grid grid-cols-2 gap-2"><Button variant="secondary" disabled={exerciseIndex === 0} onClick={() => goToExercise(exerciseIndex - 1)}><ChevronLeft size={16} />Anterior</Button><Button variant="secondary" disabled={exerciseIndex >= groups.length - 1} onClick={() => goToExercise(exerciseIndex + 1)}>Siguiente<ChevronRight size={16} /></Button></div>
@@ -254,7 +266,7 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
         <Button variant="secondary" className="mt-2 w-full" disabled={saving} onClick={() => finish("draft")}><Save size={16} />Guardar progreso y salir</Button>
       </section>
 
-      {rest > 0 && <div className="fixed inset-x-0 bottom-[78px] z-50 mx-auto flex w-[calc(100%-32px)] max-w-[528px] items-center gap-4 rounded-[16px] bg-[rgba(28,28,30,.94)] p-4 shadow-2xl backdrop-blur-xl"><strong className="text-[30px]">{clock(rest)}</strong><span className="h-1 flex-1 overflow-hidden rounded-full bg-[var(--surface-3)]"><i className="block h-full bg-[var(--accent)]" style={{ width: `${Math.min(100, rest / 90 * 100)}%` }} /></span><button onClick={() => setRest((value) => value + 15)} className="text-[var(--accent)]">+ 15s</button><Button className="min-h-10 px-4" onClick={() => setRest(0)}>Saltar</Button></div>}
+      {rest > 0 && <div className="fixed inset-x-0 bottom-[78px] z-50 mx-auto flex w-[calc(100%-32px)] max-w-[528px] items-center gap-3 rounded-[16px] bg-[rgba(28,28,30,.94)] p-4 shadow-2xl backdrop-blur-xl"><span className="shrink-0"><strong className="block text-[30px] leading-none">{clock(rest)}</strong><small className="mt-1 block text-[9px] uppercase text-[var(--label-3)]">Descanso adaptativo</small></span><span className="h-1 flex-1 overflow-hidden rounded-full bg-[var(--surface-3)]"><i className="block h-full bg-[var(--accent)]" style={{ width: `${Math.min(100, rest / restTotal * 100)}%` }} /></span><button onClick={() => { setRest((value) => value + 15); setRestTotal((value) => value + 15); }} className="shrink-0 text-[var(--accent)]">+ 15s</button><Button className="min-h-10 shrink-0 px-3" onClick={() => setRest(0)}>Saltar</Button></div>}
 
       {changingExercise && catalogExercise && <div role="dialog" aria-modal="true" aria-label={`Cambiar ${current.name}`} className="fixed inset-0 z-[70] flex items-end justify-center bg-black/75 px-2 pt-8 backdrop-blur-sm"><button type="button" aria-label="Cerrar alternativas" className="absolute inset-0" onClick={() => setChangingExercise(false)} /><section className="relative max-h-[88vh] w-full max-w-[560px] overflow-y-auto rounded-t-[24px] bg-[#111113] p-4 pb-8"><div className="mb-4 flex items-start gap-3"><div className="min-w-0 flex-1"><p className="text-[12px] uppercase text-[var(--accent)]">Mismo músculo · {catalogExercise.target ?? catalogExercise.muscleGroup}</p><h2 className="mt-1 text-[24px] font-semibold">Cambiar ejercicio</h2><p className="mt-1 text-[12px] leading-5 text-[var(--label-2)]">Conservamos series y repeticiones. El peso vuelve a 0 para que elijas una carga adecuada.</p></div><button type="button" aria-label="Cerrar alternativas" onClick={() => setChangingExercise(false)} className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[var(--surface)]"><X size={19} /></button></div><div className="relative mb-3"><Search className="pointer-events-none absolute left-3 top-3 text-[var(--label-3)]" size={18} /><Input className="pl-10" value={alternativeQuery} onChange={(event) => setAlternativeQuery(event.target.value)} placeholder={`Buscar alternativas para ${catalogExercise.target ?? catalogExercise.muscleGroup}`} /></div><div className="grid gap-2">{alternatives.map((exercise) => <button type="button" key={exercise.id} onClick={() => replaceCurrentExercise(exercise)} className="flex min-h-[58px] items-center gap-3 rounded-[14px] bg-[var(--surface)] px-3 text-left"><span className="min-w-0 flex-1"><strong className="block truncate text-[14px] capitalize">{exercise.name}</strong><span className="text-[11px] capitalize text-[var(--label-3)]">{exercise.equipment}</span></span><Plus size={17} className="text-[var(--accent)]" /></button>)}{!alternatives.length && <p className="rounded-[14px] bg-[var(--surface)] p-4 text-center text-[13px] text-[var(--label-2)]">No encontramos otra alternativa con ese filtro.</p>}</div></section></div>}
     </div>

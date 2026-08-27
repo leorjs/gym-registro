@@ -50,6 +50,7 @@ export type Exercise = {
   instructions?: string[];
   image?: string;
   gif?: string;
+  guideSlug?: string;
 };
 
 export type WorkoutSet = {

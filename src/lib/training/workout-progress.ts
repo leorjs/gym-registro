@@ -20,7 +20,7 @@ export function rpeForEffort(effort: ExerciseEffort) {
 }
 
 export function progressionMessage(effort: ExerciseEffort | undefined, weight: number, unit: WeightUnit) {
-  const increment = unit === "lb" ? 5 : 2.5;
+  const increment = unit === "lb" ? 1 : 0.5;
   if (effort === "easy") {
     return weight > 0
       ? `La próxima vez probá ${weight + increment} ${unit} y mantené las repeticiones.`
@@ -35,7 +35,18 @@ export function progressionMessage(effort: ExerciseEffort | undefined, weight: n
   return "Al terminar, indicá cómo se sintió para ajustar la próxima sesión.";
 }
 
-export function routineExercisesFromSets(sets: WorkoutSet[]): RoutineExercise[] {
+export function nextWeightForSet(set: Pick<WorkoutSet, "weight" | "rpe">, unit: WeightUnit) {
+  const step = unit === "lb" ? 1 : 0.5;
+  const effort = effortFromRpe(set.rpe);
+  const adjustment = effort === "easy" ? step : effort === "hard" ? -step : 0;
+  return Math.max(0, Math.round((set.weight + adjustment) * 100) / 100);
+}
+
+export function adaptiveRestSeconds(baseSeconds: number, completedSetsInExercise: number) {
+  return Math.max(0, baseSeconds) + Math.max(0, completedSetsInExercise) * 30;
+}
+
+export function routineExercisesFromSets(sets: WorkoutSet[], unit: WeightUnit = "kg"): RoutineExercise[] {
   const order: string[] = [];
   const grouped = new Map<string, WorkoutSet[]>();
 
@@ -59,7 +70,7 @@ export function routineExercisesFromSets(sets: WorkoutSet[]): RoutineExercise[] 
       reps: first.reps,
       weight: first.weight,
       restSeconds: first.restSeconds ?? 90,
-      setPrescriptions: exerciseSets.map(({ reps, weight }) => ({ reps, weight })),
+      setPrescriptions: exerciseSets.map((set) => ({ reps: set.reps, weight: nextWeightForSet(set, unit) })),
     };
   });
 }
