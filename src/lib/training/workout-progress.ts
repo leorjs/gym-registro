@@ -46,6 +46,15 @@ export function adaptiveRestSeconds(baseSeconds: number, completedSetsInExercise
   return Math.max(0, baseSeconds) + Math.max(0, completedSetsInExercise) * 30;
 }
 
+export function restCountdownCue(remainingSeconds: number) {
+  if (remainingSeconds < 1 || remainingSeconds > 10) return null;
+  const urgent = remainingSeconds <= 3;
+  return {
+    frequency: urgent ? 880 : 660,
+    durationMs: remainingSeconds === 1 ? 220 : urgent ? 130 : 80,
+  };
+}
+
 export function routineExercisesFromSets(sets: WorkoutSet[], unit: WeightUnit = "kg"): RoutineExercise[] {
   const order: string[] = [];
   const grouped = new Map<string, WorkoutSet[]>();

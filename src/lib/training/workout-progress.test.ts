@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { WorkoutSet } from "@/types/training";
-import { adaptiveRestSeconds, effortFromRpe, nextWeightForSet, progressionMessage, routineExercisesFromSets, rpeForEffort } from "./workout-progress";
+import { adaptiveRestSeconds, effortFromRpe, nextWeightForSet, progressionMessage, restCountdownCue, routineExercisesFromSets, rpeForEffort } from "./workout-progress";
 
 const baseSet: WorkoutSet = {
   id: "set-1",
@@ -64,5 +64,13 @@ describe("progreso del entrenamiento", () => {
     expect(adaptiveRestSeconds(90, 0)).toBe(90);
     expect(adaptiveRestSeconds(90, 1)).toBe(120);
     expect(adaptiveRestSeconds(90, 2)).toBe(150);
+  });
+
+  it("emite avisos en los últimos diez segundos y refuerza los tres finales", () => {
+    expect(restCountdownCue(11)).toBeNull();
+    expect(restCountdownCue(10)).toEqual({ frequency: 660, durationMs: 80 });
+    expect(restCountdownCue(3)).toEqual({ frequency: 880, durationMs: 130 });
+    expect(restCountdownCue(1)).toEqual({ frequency: 880, durationMs: 220 });
+    expect(restCountdownCue(0)).toBeNull();
   });
 });

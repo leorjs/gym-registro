@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, CheckCircle2, ChevronLeft, ChevronRight, Dumbbell, Gauge, Info, Lightbulb, Minus, Pause, Play, Plus, Save, Search, Sparkles, X } from "lucide-react";
+import { Check, CheckCircle2, ChevronLeft, ChevronRight, Dumbbell, Gauge, Info, Lightbulb, Minus, Pause, Play, Plus, Save, Search, Sparkles, Volume2, VolumeX, X } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import { useRoutines } from "@/lib/hooks/use-routines";
 import { useWorkouts } from "@/lib/hooks/use-workouts";
 import { alternativesForExercise, exerciseAttributionFor, exerciseByIdOrName, exerciseGifSrc, exerciseImageSrc } from "@/lib/data/exercise-catalog";
 import { estimateRoutineMinutes } from "@/lib/data/catalog";
-import { adaptiveRestSeconds, effortFromRpe, nextWeightForSet, routineExercisesFromSets, rpeForEffort, type ExerciseEffort } from "@/lib/training/workout-progress";
+import { adaptiveRestSeconds, effortFromRpe, nextWeightForSet, restCountdownCue, routineExercisesFromSets, rpeForEffort, type ExerciseEffort } from "@/lib/training/workout-progress";
 import type { Workout, WorkoutSet } from "@/types/training";
 
 function makeSet(overrides: Partial<WorkoutSet> = {}): WorkoutSet {
@@ -48,12 +48,41 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
   const [elapsed, setElapsed] = useState(0);
   const [rest, setRest] = useState(0);
   const [restTotal, setRestTotal] = useState(90);
+  const [restSoundEnabled, setRestSoundEnabled] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(true);
   const [mediaFailed, setMediaFailed] = useState(false);
   const [changingExercise, setChangingExercise] = useState(false);
   const [alternativeQuery, setAlternativeQuery] = useState("");
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const lastRestCueRef = useRef<number | null>(null);
+
+  const prepareRestAudio = useCallback(() => {
+    const AudioContextConstructor = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextConstructor) return;
+    const context = audioContextRef.current ?? new AudioContextConstructor();
+    audioContextRef.current = context;
+    if (context.state === "suspended") void context.resume();
+  }, []);
+
+  const playRestCue = useCallback((remainingSeconds: number) => {
+    const cue = restCountdownCue(remainingSeconds);
+    const context = audioContextRef.current;
+    if (!cue || !context || context.state !== "running") return;
+    const now = context.currentTime;
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(cue.frequency, now);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.09, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + cue.durationMs / 1000);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start(now);
+    oscillator.stop(now + cue.durationMs / 1000 + 0.02);
+  }, []);
 
   const applyRoutine = useCallback((routineId: string) => {
     const routine = routines.find((item) => item.id === routineId);
@@ -107,6 +136,20 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
     return () => window.clearTimeout(timer);
   }, [rest]);
 
+  useEffect(() => {
+    if (rest <= 0) {
+      lastRestCueRef.current = null;
+      return;
+    }
+    if (!restSoundEnabled || rest > 10 || lastRestCueRef.current === rest) return;
+    lastRestCueRef.current = rest;
+    playRestCue(rest);
+  }, [playRestCue, rest, restSoundEnabled]);
+
+  useEffect(() => () => {
+    if (audioContextRef.current) void audioContextRef.current.close();
+  }, []);
+
   const groups = useMemo(() => {
     const names: string[] = [];
     sets.forEach((set) => { if (!names.includes(set.exerciseName)) names.push(set.exerciseName); });
@@ -137,6 +180,8 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
     if (done) {
       const completedInExercise = current?.sets.filter((item) => item.completed !== false).length ?? 0;
       const adaptiveRest = adaptiveRestSeconds(set.restSeconds ?? 90, completedInExercise);
+      lastRestCueRef.current = null;
+      if (restSoundEnabled) prepareRestAudio();
       setRestTotal(adaptiveRest);
       setRest(adaptiveRest);
     }
@@ -266,7 +311,7 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
         <Button variant="secondary" className="mt-2 w-full" disabled={saving} onClick={() => finish("draft")}><Save size={16} />Guardar progreso y salir</Button>
       </section>
 
-      {rest > 0 && <div className="fixed inset-x-0 bottom-[78px] z-50 mx-auto flex w-[calc(100%-32px)] max-w-[528px] items-center gap-3 rounded-[16px] bg-[rgba(28,28,30,.94)] p-4 shadow-2xl backdrop-blur-xl"><span className="shrink-0"><strong className="block text-[30px] leading-none">{clock(rest)}</strong><small className="mt-1 block text-[9px] uppercase text-[var(--label-3)]">Descanso adaptativo</small></span><span className="h-1 flex-1 overflow-hidden rounded-full bg-[var(--surface-3)]"><i className="block h-full bg-[var(--accent)]" style={{ width: `${Math.min(100, rest / restTotal * 100)}%` }} /></span><button onClick={() => { setRest((value) => value + 15); setRestTotal((value) => value + 15); }} className="shrink-0 text-[var(--accent)]">+ 15s</button><Button className="min-h-10 shrink-0 px-3" onClick={() => setRest(0)}>Saltar</Button></div>}
+      {rest > 0 && <div className="fixed inset-x-0 bottom-[78px] z-50 mx-auto flex w-[calc(100%-32px)] max-w-[528px] items-center gap-3 rounded-[16px] bg-[rgba(28,28,30,.94)] p-4 shadow-2xl backdrop-blur-xl"><span className="shrink-0"><strong className="block text-[30px] leading-none">{clock(rest)}</strong><small className="mt-1 block text-[9px] uppercase text-[var(--label-3)]">{rest <= 10 && restSoundEnabled ? "Aviso sonoro" : "Descanso adaptativo"}</small></span><button type="button" aria-label={restSoundEnabled ? "Silenciar avisos del descanso" : "Activar avisos del descanso"} onClick={() => { if (!restSoundEnabled) prepareRestAudio(); setRestSoundEnabled((value) => !value); }} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--surface-2)] text-[var(--accent)]">{restSoundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}</button><span className="h-1 flex-1 overflow-hidden rounded-full bg-[var(--surface-3)]"><i className="block h-full bg-[var(--accent)]" style={{ width: `${Math.min(100, rest / restTotal * 100)}%` }} /></span><button onClick={() => { setRest((value) => value + 15); setRestTotal((value) => value + 15); }} className="shrink-0 text-[var(--accent)]">+ 15s</button><Button className="min-h-10 shrink-0 px-3" onClick={() => setRest(0)}>Saltar</Button></div>}
 
       {changingExercise && catalogExercise && <div role="dialog" aria-modal="true" aria-label={`Cambiar ${current.name}`} className="fixed inset-0 z-[70] flex items-end justify-center bg-black/75 px-2 pt-8 backdrop-blur-sm"><button type="button" aria-label="Cerrar alternativas" className="absolute inset-0" onClick={() => setChangingExercise(false)} /><section className="relative max-h-[88vh] w-full max-w-[560px] overflow-y-auto rounded-t-[24px] bg-[#111113] p-4 pb-8"><div className="mb-4 flex items-start gap-3"><div className="min-w-0 flex-1"><p className="text-[12px] uppercase text-[var(--accent)]">Mismo músculo · {catalogExercise.target ?? catalogExercise.muscleGroup}</p><h2 className="mt-1 text-[24px] font-semibold">Cambiar ejercicio</h2><p className="mt-1 text-[12px] leading-5 text-[var(--label-2)]">Conservamos series y repeticiones. El peso vuelve a 0 para que elijas una carga adecuada.</p></div><button type="button" aria-label="Cerrar alternativas" onClick={() => setChangingExercise(false)} className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[var(--surface)]"><X size={19} /></button></div><div className="relative mb-3"><Search className="pointer-events-none absolute left-3 top-3 text-[var(--label-3)]" size={18} /><Input className="pl-10" value={alternativeQuery} onChange={(event) => setAlternativeQuery(event.target.value)} placeholder={`Buscar alternativas para ${catalogExercise.target ?? catalogExercise.muscleGroup}`} /></div><div className="grid gap-2">{alternatives.map((exercise) => <button type="button" key={exercise.id} onClick={() => replaceCurrentExercise(exercise)} className="flex min-h-[58px] items-center gap-3 rounded-[14px] bg-[var(--surface)] px-3 text-left"><span className="min-w-0 flex-1"><strong className="block truncate text-[14px] capitalize">{exercise.name}</strong><span className="text-[11px] capitalize text-[var(--label-3)]">{exercise.equipment}</span></span><Plus size={17} className="text-[var(--accent)]" /></button>)}{!alternatives.length && <p className="rounded-[14px] bg-[var(--surface)] p-4 text-center text-[13px] text-[var(--label-2)]">No encontramos otra alternativa con ese filtro.</p>}</div></section></div>}
     </div>

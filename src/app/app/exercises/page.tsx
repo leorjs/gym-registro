@@ -179,8 +179,7 @@ function FilterChip({ label, active, onClick }: { label: string; active: boolean
 function ExerciseThumb({ exercise }: { exercise: Exercise }) {
   const src = exerciseImageSrc(exercise);
   if (!src) return <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]"><Dumbbell size={18} /></span>;
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt="" loading="lazy" decoding="async" className="h-12 w-12 shrink-0 rounded-xl bg-white object-contain" />;
+  return <span className="block h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-white"><ExerciseVisual exercise={exercise} playing={false} alt="" className="h-full w-full object-contain" /></span>;
 }
 
 function ExerciseDetail({ exercise, routines, onClose, onAddToRoutine }: { exercise: Exercise; routines: Routine[]; onClose: () => void; onAddToRoutine: (exercise: Exercise, routineId: string) => Promise<void> }) {
