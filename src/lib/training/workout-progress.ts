@@ -55,6 +55,13 @@ export function restCountdownCue(remainingSeconds: number) {
   };
 }
 
+export function exerciseIndexAfterSwipe(currentIndex: number, exerciseCount: number, deltaX: number, deltaY: number) {
+  const horizontalSwipe = Math.abs(deltaX) >= 56 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2;
+  if (!horizontalSwipe || exerciseCount < 1) return currentIndex;
+  const direction = deltaX < 0 ? 1 : -1;
+  return Math.min(exerciseCount - 1, Math.max(0, currentIndex + direction));
+}
+
 export function routineExercisesFromSets(sets: WorkoutSet[], unit: WeightUnit = "kg"): RoutineExercise[] {
   const order: string[] = [];
   const grouped = new Map<string, WorkoutSet[]>();

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { WorkoutSet } from "@/types/training";
-import { adaptiveRestSeconds, effortFromRpe, nextWeightForSet, progressionMessage, restCountdownCue, routineExercisesFromSets, rpeForEffort } from "./workout-progress";
+import { adaptiveRestSeconds, effortFromRpe, exerciseIndexAfterSwipe, nextWeightForSet, progressionMessage, restCountdownCue, routineExercisesFromSets, rpeForEffort } from "./workout-progress";
 
 const baseSet: WorkoutSet = {
   id: "set-1",
@@ -72,5 +72,13 @@ describe("progreso del entrenamiento", () => {
     expect(restCountdownCue(3)).toEqual({ frequency: 880, durationMs: 130 });
     expect(restCountdownCue(1)).toEqual({ frequency: 880, durationMs: 220 });
     expect(restCountdownCue(0)).toBeNull();
+  });
+
+  it("cambia de ejercicio con un deslizamiento horizontal", () => {
+    expect(exerciseIndexAfterSwipe(1, 4, -90, 10)).toBe(2);
+    expect(exerciseIndexAfterSwipe(1, 4, 90, 10)).toBe(0);
+    expect(exerciseIndexAfterSwipe(1, 4, -30, 2)).toBe(1);
+    expect(exerciseIndexAfterSwipe(0, 4, 90, 0)).toBe(0);
+    expect(exerciseIndexAfterSwipe(3, 4, -90, 0)).toBe(3);
   });
 });
