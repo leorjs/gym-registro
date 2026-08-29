@@ -129,6 +129,7 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
 
   useEffect(() => {
     if (!focus) return;
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     const timer = window.setInterval(() => setElapsed((value) => value + 1), 1000);
     return () => window.clearInterval(timer);
   }, [focus]);
@@ -291,7 +292,7 @@ export function WorkoutEditor({ workout, initialRoutineId }: { workout?: Workout
             const hasVisual = !!(exerciseGifSrc(exercise) || exerciseImageSrc(exercise));
             const done = group.sets.every((set) => set.completed !== false);
             const active = index === exerciseIndex;
-            return <button ref={active ? activeExerciseThumbRef : undefined} key={`${group.name}-${index}`} type="button" aria-label={`Ir a ${group.name}${done ? ", completado" : ""}`} aria-current={active ? "step" : undefined} onClick={() => goToExercise(index)} className={`relative grid h-[66px] w-[66px] shrink-0 place-items-center overflow-hidden rounded-[15px] border-2 transition ${active ? "border-[var(--accent)] bg-white shadow-[0_0_0_2px_color-mix(in_srgb,var(--accent)_18%,transparent)]" : done ? "border-[color-mix(in_srgb,var(--accent)_50%,transparent)] bg-white/90" : "border-white/10 bg-[var(--surface)]"}`}>
+            return <button ref={active ? activeExerciseThumbRef : undefined} key={`${group.name}-${index}`} type="button" aria-label={`Ir a ${group.name}${done ? ", completado" : ""}`} aria-current={active ? "step" : undefined} onClick={() => goToExercise(index)} className={`relative grid h-[66px] w-[66px] shrink-0 place-items-center overflow-hidden rounded-[15px] border-2 bg-white transition ${active ? "border-[var(--accent)] shadow-[0_0_0_2px_color-mix(in_srgb,var(--accent)_18%,transparent)]" : done ? "border-[color-mix(in_srgb,var(--accent)_50%,transparent)]" : "border-white/20"}`}>
               {exercise && hasVisual ? <ExerciseVisual exercise={exercise} playing={false} alt="" className="h-full w-full object-contain" /> : <Dumbbell size={19} className="text-[var(--label-3)]" />}
               <span className={`absolute left-1.5 top-1.5 grid h-4 min-w-4 place-items-center rounded-full px-1 text-[9px] font-bold ${active ? "bg-[var(--accent)] text-black" : "bg-black/65 text-white"}`}>{index + 1}</span>
               {done && <span className="absolute bottom-1.5 right-1.5 grid h-4 w-4 place-items-center rounded-full bg-[var(--accent)] text-black"><Check size={10} strokeWidth={3} /></span>}
