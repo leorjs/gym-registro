@@ -5,7 +5,7 @@ import { addDays, addWeeks, format, isSameDay, startOfWeek } from "date-fns";
 import { es } from "date-fns/locale";
 import { useState } from "react";
 import { Area, AreaChart, ReferenceLine, ResponsiveContainer, YAxis } from "recharts";
-import { CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight, Dumbbell, Flame, Settings, Moon, Play, Plus, Sparkles } from "lucide-react";
+import { CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight, Dumbbell, Flame, LoaderCircle, Settings, Moon, Play, Plus, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getWeekStreak, getWeeklySessions } from "@/lib/metrics/training";
@@ -20,7 +20,7 @@ export default function HomePage() {
   const { user, profile } = useAuth();
   const { workouts } = useWorkouts(user?.uid);
   const { entries: bodyweights, latest: latestWeight, saveWeight } = useBodyweights(user?.uid);
-  const { plan } = useWeeklyPlan(user?.uid, profile?.weeklyGoal ?? 4);
+  const { plan, loading: planLoading } = useWeeklyPlan(user?.uid, profile?.weeklyGoal ?? 4);
   const { routines } = useRoutines(user?.uid);
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedWeekday, setSelectedWeekday] = useState(() => new Date().getDay());
@@ -30,7 +30,7 @@ export default function HomePage() {
   const monday = startOfWeek(addWeeks(today, weekOffset), { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, index) => addDays(monday, index));
   const selectedDate = weekDays.find((day) => day.getDay() === selectedWeekday) ?? weekDays[0];
-  const selectedPlan = plan.days.find((day) => day.weekday === selectedWeekday);
+  const selectedPlan = planLoading ? undefined : plan.days.find((day) => day.weekday === selectedWeekday);
   const selectedRoutine = routines.find((routine) => routine.id === selectedPlan?.routineId);
   const completedWorkouts = workouts.filter((workout) => workout.status === "completed");
   const doneDates = new Set(completedWorkouts.map((workout) => workout.date));
@@ -67,7 +67,7 @@ export default function HomePage() {
           <div className="grid grid-cols-7 gap-1 text-center">
             {weekDays.map((day) => {
               const iso = format(day, "yyyy-MM-dd");
-              const planned = plan.days.some((item) => item.weekday === day.getDay());
+              const planned = !planLoading && plan.days.some((item) => item.weekday === day.getDay());
               const current = isSameDay(day, today);
               const done = doneDates.has(iso);
               return (
@@ -82,14 +82,16 @@ export default function HomePage() {
 
           <div className="mt-4 rounded-xl bg-[var(--surface-2)] p-3">
             <div className="flex items-center gap-3">
-              <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${selectedWorkout || selectedPlan ? "bg-[var(--accent)] text-black" : "bg-[var(--surface-3)]"}`}>{selectedWorkout ? <CheckCircle2 size={17} /> : selectedPlan ? <Dumbbell size={17} /> : <Moon size={17} />}</span>
+              <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${selectedWorkout || selectedPlan ? "bg-[var(--accent)] text-black" : "bg-[var(--surface-3)]"}`}>{selectedWorkout ? <CheckCircle2 size={17} /> : planLoading ? <LoaderCircle size={17} className="animate-spin" /> : selectedPlan ? <Dumbbell size={17} /> : <Moon size={17} />}</span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[11px] uppercase text-[var(--label-3)]">{format(selectedDate, "EEEE d", { locale: es })}</span>
-                <span className="block truncate text-[17px]">{selectedWorkout ? `${selectedWorkout.focus} · Completada` : selectedPlan?.focus ?? "Día de descanso"}</span>
+                <span className="block truncate text-[17px]">{selectedWorkout ? `${selectedWorkout.focus} · Completada` : planLoading ? "Cargando tu plan…" : selectedPlan?.focus ?? "Día de descanso"}</span>
               </span>
               {selectedRoutine && <span className="text-[12px] text-[var(--label-2)]">≈ {estimateRoutineMinutes(selectedRoutine)} min</span>}
             </div>
-            {selectedRoutine ? (
+            {planLoading && !selectedWorkout ? (
+              <p className="mt-3 border-t border-white/10 pt-3 text-center text-[12px] text-[var(--label-3)]">Sincronizando la misma semana que configuraste en Plan.</p>
+            ) : selectedRoutine ? (
               <>
                 <ul className="mt-3 grid gap-1.5 border-t border-white/10 pt-3">
                   {selectedRoutine.exercises.map((exercise) => (

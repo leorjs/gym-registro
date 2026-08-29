@@ -8,8 +8,7 @@ import { weeklyPlanPath } from "@/lib/firebase/paths";
 import type { UserWeeklyPlan, WeeklyPlanDay } from "@/types/training";
 
 export function useWeeklyPlan(uid?: string, preferredDays = 4) {
-  const [savedPlan, setSavedPlan] = useState<UserWeeklyPlan | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [snapshotState, setSnapshotState] = useState<{ uid: string; plan: UserWeeklyPlan | null } | null>(null);
 
   useEffect(() => {
     if (!uid || !hasFirebaseConfig) {
@@ -17,8 +16,9 @@ export function useWeeklyPlan(uid?: string, preferredDays = 4) {
     }
 
     const unsubscribe = onSnapshot(doc(getFirebaseDb(), weeklyPlanPath(uid)), (snapshot) => {
-      setSavedPlan(snapshot.exists() ? snapshot.data() as UserWeeklyPlan : null);
-      setLoading(false);
+      setSnapshotState({ uid, plan: snapshot.exists() ? snapshot.data() as UserWeeklyPlan : null });
+    }, () => {
+      setSnapshotState({ uid, plan: null });
     });
 
     return () => {
@@ -27,6 +27,8 @@ export function useWeeklyPlan(uid?: string, preferredDays = 4) {
   }, [uid]);
 
   const fallback = recommendWeeklyPlan(preferredDays);
+  const savedPlan = snapshotState && snapshotState.uid === uid ? snapshotState.plan : null;
+  const loading = Boolean(uid && hasFirebaseConfig && snapshotState?.uid !== uid);
   const plan = useMemo(() => {
     if (!savedPlan) return fallback;
     const template = weeklyPlanTemplates.find((item) => item.id === savedPlan.templateId) ?? fallback;

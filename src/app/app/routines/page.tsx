@@ -28,7 +28,7 @@ const weekdays = [
 export default function PlanPage() {
   const { user, profile } = useAuth();
   const { routines, saveRoutine } = useRoutines(user?.uid);
-  const { plan, savePlan } = useWeeklyPlan(user?.uid, profile?.weeklyGoal ?? 4);
+  const { plan, loading: planLoading, savePlan } = useWeeklyPlan(user?.uid, profile?.weeklyGoal ?? 4);
   const [draftDays, setDraftDays] = useState<WeeklyPlanDay[] | null>(null);
   const [editingRoutine, setEditingRoutine] = useState<Routine | null>(null);
   const [saving, setSaving] = useState(false);
@@ -90,30 +90,21 @@ export default function PlanPage() {
     }
   }
 
+  if (planLoading) {
+    return <><header className="mb-6 mt-1"><h1 className="text-[34px] font-bold leading-[1.06] tracking-[-.028em]">Plan</h1><p className="mt-1 text-[15px] text-[var(--label-2)]">La misma semana que ves en Inicio</p></header><Card><CardContent className="p-5 text-center"><p className="text-[15px]">Sincronizando tu semana…</p><p className="mt-1 text-[12px] text-[var(--label-3)]">Esperamos tu plan guardado antes de mostrar o permitir cambios.</p></CardContent></Card></>;
+  }
+
   return (
     <>
       <header className="mb-6 mt-1">
         <h1 className="text-[34px] font-bold leading-[1.06] tracking-[-.028em]">Plan</h1>
-        <p className="mt-1 text-[15px] text-[var(--label-2)]">Elegí una estructura y personalizá cada día</p>
+        <p className="mt-1 text-[15px] text-[var(--label-2)]">La misma semana que ves en Inicio</p>
       </header>
 
       {message && <p className="mb-4 rounded-xl bg-[var(--accent-soft)] px-3 py-2 text-[13px] text-[var(--accent)]">{message}</p>}
 
       <section className="mb-7">
-        <h2 className="mb-3 px-1 text-[15px] font-normal text-[var(--label-2)]">Planes preparados</h2>
-        <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2">
-          {weeklyPlanTemplates.map((template) => (
-            <button key={template.id} type="button" disabled={saving} onClick={() => applyTemplate(template)} className={`w-[230px] shrink-0 rounded-[18px] p-4 text-left ${plan.id === template.id ? "bg-[var(--accent)] text-black" : "bg-[var(--surface)] text-white"}`}>
-              <span className="text-[11px] uppercase opacity-60">{template.daysPerWeek} días · {template.level}</span>
-              <strong className="mt-1 block text-[18px] font-semibold">{template.name}</strong>
-              <span className="mt-2 block text-[12px] leading-relaxed opacity-65">{template.description}</span>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="mb-8">
-        <div className="mb-3 flex items-center justify-between px-1"><div><h2 className="text-[15px] font-normal text-[var(--label-2)]">Calendario semanal</h2><p className="mt-1 text-[12px] text-[var(--label-3)]">Podés elegir una rutina distinta para cada día.</p></div><Button size="sm" onClick={saveCurrentPlan} disabled={saving}>{saving ? "Guardando…" : "Guardar"}</Button></div>
+        <div className="mb-3 flex items-center justify-between gap-3 px-1"><div className="min-w-0"><h2 className="truncate text-[19px] font-semibold">Tu semana</h2><p className="mt-1 truncate text-[12px] text-[var(--accent)]">{plan.name}</p><p className="mt-1 text-[12px] text-[var(--label-3)]">Estos son exactamente los días que aparecen en Inicio.</p></div><Button size="sm" onClick={saveCurrentPlan} disabled={saving}>{saving ? "Guardando…" : "Guardar"}</Button></div>
         <div className="grid gap-3">
           {weekdays.map((day) => {
             const scheduled = currentDays.find((item) => item.weekday === day.value);
@@ -129,6 +120,19 @@ export default function PlanPage() {
               </Card>
             );
           })}
+        </div>
+      </section>
+
+      <section className="mb-8">
+        <div className="mb-3 px-1"><h2 className="text-[15px] font-normal text-[var(--label-2)]">Cambiar estructura</h2><p className="mt-1 text-[12px] text-[var(--label-3)]">Opcional: reemplaza tu semana actual por uno de estos planes.</p></div>
+        <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2">
+          {weeklyPlanTemplates.map((template) => (
+            <button key={template.id} type="button" disabled={saving} onClick={() => applyTemplate(template)} className={`w-[230px] shrink-0 rounded-[18px] p-4 text-left ${plan.id === template.id ? "bg-[var(--accent)] text-black" : "bg-[var(--surface)] text-white"}`}>
+              <span className="text-[11px] uppercase opacity-60">{template.daysPerWeek} días · {template.level}</span>
+              <strong className="mt-1 block text-[18px] font-semibold">{template.name}</strong>
+              <span className="mt-2 block text-[12px] leading-relaxed opacity-65">{template.description}</span>
+            </button>
+          ))}
         </div>
       </section>
 
